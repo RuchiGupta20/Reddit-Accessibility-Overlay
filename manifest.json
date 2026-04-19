@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Reddit Accessibility Overlay",
+  "description": "A Reddit overlay extension scaffold for building dyslexia and ADHD accessibility features.",
+  "version": "0.1.0",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.reddit.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Reddit Accessibility Overlay",
+    "default_popup": "src/popup/popup.html"
+  },
+  "options_page": "src/options/options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.reddit.com/*"
+      ],
+      "js": [
+        "src/content/content.js"
+      ],
+      "css": [
+        "src/content/content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/content/content.css"
+      ],
+      "matches": [
+        "https://www.reddit.com/*"
+      ]
+    }
+  ]
+}

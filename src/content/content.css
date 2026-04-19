@@ -1,0 +1,133 @@
+#rao-root {
+  all: initial;
+}
+
+#rao-root[data-hidden="true"] {
+  display: none;
+}
+
+html[data-rao-enabled="true"] {
+  --rao-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --rao-font-scale: 1;
+  --rao-line-height: 1.6;
+  --rao-letter-spacing: 0em;
+  --rao-word-spacing: 0em;
+}
+
+html[data-rao-enabled="true"] body main :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  li,
+  a,
+  blockquote,
+  figcaption,
+  summary,
+  td,
+  th,
+  label
+) {
+  font-family: var(--rao-font-family) !important;
+  font-size: calc(1em * var(--rao-font-scale)) !important;
+  line-height: var(--rao-line-height) !important;
+  letter-spacing: var(--rao-letter-spacing) !important;
+  word-spacing: var(--rao-word-spacing) !important;
+}
+
+html[data-rao-enabled="true"] body main :is(ul, ol) {
+  line-height: var(--rao-line-height) !important;
+}
+
+html[data-rao-enabled="true"][data-rao-reduced-stimulation="true"] {
+  --rao-calm-surface: #f4f5f7;
+  --rao-calm-surface-strong: #eceff2;
+  --rao-calm-text: #1f2937;
+  --rao-calm-border: #d7dde4;
+}
+
+html[data-rao-enabled="true"][data-rao-reduced-stimulation="true"] body {
+  background: var(--rao-calm-surface) !important;
+  color: var(--rao-calm-text) !important;
+}
+
+html[data-rao-enabled="true"][data-rao-reduced-stimulation="true"] body :is(
+  img,
+  video,
+  svg,
+  shreddit-player,
+  faceplate-img
+) {
+  filter: saturate(0.72);
+}
+
+html[data-rao-enabled="true"][data-rao-reduced-stimulation="true"] body :is(
+  [slot="right-rail"],
+  [slot="page-rail"],
+  [data-testid="right-sidebar"],
+  [data-testid="left-sidebar"],
+  shreddit-comments-page-ad,
+  shreddit-ads-iframe,
+  faceplate-tracker[noun="community_sidebar"],
+  faceplate-tracker[noun="post_sidebar"]
+) {
+  display: none !important;
+}
+
+html[data-rao-enabled="true"][data-rao-reduced-stimulation="true"] body :is(
+  faceplate-number,
+  [id*="vote-arrows"],
+  [data-testid*="vote"],
+  [data-click-id="score"],
+  [data-testid="post-vote-count"],
+  [data-testid="comment-vote-count"],
+  [aria-label*="upvote" i],
+  [aria-label*="downvote" i],
+  [aria-label*="karma" i],
+  [icon-name="award-fill"],
+  [icon-name="award-outline"],
+  shreddit-award-button,
+  award-button
+) {
+  display: none !important;
+}
+
+html[data-rao-enabled="true"][data-rao-reduced-stimulation="true"] body :is(
+  shreddit-post,
+  shreddit-comment,
+  article,
+  [data-testid="post-container"],
+  [data-testid="comment"]
+) {
+  background: var(--rao-calm-surface) !important;
+  border-color: var(--rao-calm-border) !important;
+  box-shadow: none !important;
+}
+
+html[data-rao-enabled="true"][data-rao-reduced-stimulation="true"] body :is(
+  shreddit-comment[depth="2"],
+  shreddit-comment[depth="3"],
+  shreddit-comment[depth="4"],
+  shreddit-comment[depth="5"],
+  shreddit-comment[depth="6"],
+  shreddit-comment[depth="7"],
+  shreddit-comment[depth="8"],
+  shreddit-comment[depth="9"],
+  shreddit-comment[depth="10"]
+) {
+  display: none !important;
+}
+
+html[data-rao-enabled="true"][data-rao-reduced-stimulation="true"] body :is(
+  [data-testid="comment"],
+  shreddit-comment
+) :is(
+  [data-testid="comment-indent-line"],
+  .threadline,
+  .Comment__verticalBar
+) {
+  opacity: 0.2 !important;
+}
