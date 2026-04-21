@@ -79,6 +79,32 @@ function scheduleSave(nextSettings) {
 }
 
 /* TTS start */
+function syncAllSpeedControls() {
+  const rate = currentSettings.ttsRate ?? 1;
+  document.querySelectorAll(".rao-speed-btn").forEach(b =>
+    b.classList.toggle("rao-speed-active", Number(b.dataset.rate) === rate)
+  );
+}
+
+function buildSpeedControls(onRestart) {
+  const row = document.createElement("div");
+  row.className = "rao-speed-row";
+  row.innerHTML = [0.5, 1, 1.5, 2].map(r =>
+    `<button class="rao-speed-btn" data-rate="${r}" type="button">${r}×</button>`
+  ).join("");
+
+  row.querySelectorAll(".rao-speed-btn").forEach(btn => btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const nextSettings = { ...currentSettings, ttsRate: Number(btn.dataset.rate) };
+    applySettings(nextSettings);
+    scheduleSave(nextSettings);
+    onRestart?.();
+  }));
+
+  syncAllSpeedControls();
+  return row;
+}
+
 function buildPostSegments(post) {
   const segs = [];
   const titleEl = post.querySelector("h1, [slot='title']");
@@ -111,6 +137,7 @@ function createPostPlayer(post) {
       <div class="rao-player-progress-fill"></div>
     </div>
   `;
+  player.appendChild(buildSpeedControls(() => { if (ttsSession?.player === player) play(); }));
 
   const playBtn = player.querySelector(".rao-ctrl-play");
   const backBtn = player.querySelector(".rao-ctrl-back");
@@ -139,14 +166,25 @@ function createPostPlayer(post) {
 }
 
 function createCommentPlayer(comment) {
+  // Shadow DOM isolates our mutations from Reddit's component observers, preventing flicker
+  const host = document.createElement("span");
+  host.style.cssText = "display:inline-flex;align-items:center;vertical-align:middle;margin-left:6px;";
+  const shadow = host.attachShadow({ mode: "open" });
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = chrome.runtime.getURL("src/content/content.css");
+  shadow.appendChild(link);
+
   const wrapper = document.createElement("div");
   wrapper.className = "rao-comment-player";
   wrapper.dataset.ttsState = "idle";
 
   wrapper.innerHTML = `
     <div class="rao-comment-player-row">
+      <button class="rao-ctrl rao-ctrl-back rao-comment-back" type="button" title="Restart" style="display:none">⏮</button>
       <button class="rao-ctrl rao-ctrl-play rao-comment-play" type="button" aria-label="Play">▶</button>
-      <button class="rao-ctrl rao-ctrl-stop rao-comment-stop" type="button" title="Stop" style="display:none">⏹</button>
+      <button class="rao-ctrl rao-comment-stop" type="button" style="display:none">⏹ Stop</button>
       <span class="rao-comment-label">Listen</span>
     </div>
     <div class="rao-comment-progress-track" style="display:none">
@@ -154,6 +192,12 @@ function createCommentPlayer(comment) {
     </div>
   `;
 
+  const speedRow = buildSpeedControls(() => { if (ttsSession?.player === wrapper) play(); });
+  speedRow.style.display = "none";
+  wrapper.appendChild(speedRow);
+  shadow.appendChild(wrapper);
+
+  const backBtn = wrapper.querySelector(".rao-comment-back");
   const playBtn = wrapper.querySelector(".rao-comment-play");
   const stopBtn = wrapper.querySelector(".rao-comment-stop");
   const label   = wrapper.querySelector(".rao-comment-label");
@@ -161,15 +205,21 @@ function createCommentPlayer(comment) {
 
   const getSegs = () => {
     const bodyEl = comment.querySelector("[slot='comment'], .md");
-    return [{ label: "", el: bodyEl ?? comment, staticText: bodyEl ? null : extractReadableText(comment) }];
+    return [{ label: "", el: null, staticText: extractReadableText(bodyEl ?? comment) }];
   };
 
   const syncUI = (state) => {
     const active = state === "playing" || state === "paused";
-    label.textContent = state === "playing" ? "Pause" : state === "paused" ? "Resume" : "Listen";
-    stopBtn.style.display = active ? "" : "none";
-    track.style.display   = active ? "" : "none";
+    label.style.display    = active ? "none" : "";
+    backBtn.style.display  = active ? "" : "none";
+    stopBtn.style.display  = active ? "" : "none";
+    track.style.display    = active ? "" : "none";
+    speedRow.style.display = active ? "" : "none";
   };
+
+  const play = () => startTTS(wrapper, getSegs(), false, syncUI);
+
+  backBtn.addEventListener("click", (e) => { e.stopPropagation(); play(); });
 
   playBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -187,7 +237,7 @@ function createCommentPlayer(comment) {
       syncUI("playing");
       return;
     }
-    startTTS(wrapper, getSegs(), currentSettings.ttsHighlight ?? true, syncUI);
+    play();
   });
 
   stopBtn.addEventListener("click", (e) => {
@@ -195,88 +245,25 @@ function createCommentPlayer(comment) {
     if (ttsSession?.player === wrapper) stopTTS();
   });
 
-  return wrapper;
-}
-
-function createFeedTTSButton(post) {
-  const btn = document.createElement("button");
-  btn.className = "rao-feed-tts-btn";
-  btn.type = "button";
-  btn.textContent = "▶ Listen to title";
-  btn.dataset.ttsState = "idle";
-
-  ["pointerdown", "mousedown", "touchstart"].forEach(type => {
-    btn.addEventListener(type, e => { e.stopPropagation(); e.preventDefault(); }, { capture: true });
-  });
-
-  const syncBtnUI = (state) => {
-    btn.textContent = state === "playing" ? "⏸ Pause" : state === "paused" ? "▶ Resume" : "▶ Listen to title";
-    btn.dataset.ttsState = state;
-  };
-
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    e.preventDefault();
-    const state = btn.dataset.ttsState;
-    if (state === "playing") {
-      window.speechSynthesis.pause();
-      syncBtnUI("paused");
-      return;
-    }
-    if (state === "paused") {
-      window.speechSynthesis.resume();
-      syncBtnUI("playing");
-      return;
-    }
-    const titleEl = post.querySelector("h1, [slot='title'], [data-click-id='body'] h3");
-    const flairEl = post.querySelector("faceplate-pill, [slot='flair']");
-    const segs = [];
-    if (titleEl) segs.push({ label: "", el: null, staticText: extractReadableText(titleEl) });
-    if (flairEl) {
-      const t = (flairEl.innerText || "").trim();
-      if (t) segs.push({ label: "Flair", el: null, staticText: t });
-    }
-    if (!segs.some(s => s.staticText)) return;
-    startTTS(null, segs, false, syncBtnUI);
-  }, { capture: true });
-
-  return btn;
+  return host;
 }
 
 function injectTTSButtons() {
-  const onThread = isThreadPage();
+  if (!isThreadPage()) return;
 
   document.querySelectorAll("shreddit-post:not([data-rao-tts])").forEach(post => {
     post.dataset.raoTts = "1";
-
-    if (onThread) {
-      // Full player card — insert before the action row
-      const player = createPostPlayer(post);
-      const footer = post.querySelector("[slot='post-media-footer'], footer");
-      (footer ?? post).insertAdjacentElement("afterbegin", player);
-    } else {
-      // Small pill — lives IN the action row next to Share so it's outside the nav zone
-      const btn = createFeedTTSButton(post);
-      const shareBtn = post.querySelector(
-        '[data-click-id="share"], [aria-label*="share" i], faceplate-tracker[noun="share"]'
-      );
-      if (shareBtn) {
-        shareBtn.insertAdjacentElement("afterend", btn);
-      } else {
-        post.appendChild(btn);
-      }
-    }
+    const player = createPostPlayer(post);
+    const footer = post.querySelector("[slot='post-media-footer'], footer");
+    (footer ?? post).insertAdjacentElement("afterbegin", player);
   });
 
-  if (onThread) {
-    document.querySelectorAll("shreddit-comment:not([data-rao-tts])").forEach(comment => {
-      comment.dataset.raoTts = "1";
-      const player = createCommentPlayer(comment);
-      const actionBar = comment.querySelector("[slot='comment-actions'], footer");
-      (actionBar ?? comment).appendChild(player);
-    });
-  }
+  document.querySelectorAll("shreddit-comment:not([data-rao-tts])").forEach(comment => {
+    comment.dataset.raoTts = "1";
+    const player = createCommentPlayer(comment);
+    const actionBar = comment.querySelector("[slot='comment-actions'], footer");
+    (actionBar ?? comment).appendChild(player);
+  });
 }
 
 function startTTSObserver() {
@@ -471,13 +458,6 @@ function buildOverlay(root) {
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:4px 0 12px" />
       <p style="margin:0 0 10px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b">Text to Speech</p>
       <label class="rao-row">
-        <span class="rao-row-head">
-          <span>Speed</span>
-          <span class="rao-value rao-tts-rate-value"></span>
-        </span>
-        <input class="rao-input rao-tts-rate" type="range" min="0.5" max="2" step="0.1" />
-      </label>
-      <label class="rao-row">
         <span class="rao-row-head"><span>Voice</span></span>
         <select class="rao-select rao-tts-voice">
           <option value="">Default voice</option>
@@ -502,14 +482,12 @@ function buildOverlay(root) {
   const lineHeightInput = shadow.querySelector(".rao-line-height");
   const letterSpacingInput = shadow.querySelector(".rao-letter-spacing");
   const wordSpacingInput = shadow.querySelector(".rao-word-spacing");
-  const ttsRateInput = shadow.querySelector(".rao-tts-rate");
   const ttsVoiceInput = shadow.querySelector(".rao-tts-voice");
   const ttsHighlightInput = shadow.querySelector(".rao-tts-highlight");
   const fontScaleValue = shadow.querySelector(".rao-font-scale-value");
   const lineHeightValue = shadow.querySelector(".rao-line-height-value");
   const letterSpacingValue = shadow.querySelector(".rao-letter-spacing-value");
   const wordSpacingValue = shadow.querySelector(".rao-word-spacing-value");
-  const ttsRateValue = shadow.querySelector(".rao-tts-rate-value");
 
   populateVoiceSelect(ttsVoiceInput);
 
@@ -521,14 +499,12 @@ function buildOverlay(root) {
     lineHeightInput,
     letterSpacingInput,
     wordSpacingInput,
-    ttsRateInput,
     ttsVoiceInput,
     ttsHighlightInput,
     fontScaleValue,
     lineHeightValue,
     letterSpacingValue,
-    wordSpacingValue,
-    ttsRateValue
+    wordSpacingValue
   };
 
   launcher?.addEventListener("click", () => {
@@ -616,14 +592,6 @@ function buildOverlay(root) {
     scheduleSave(nextSettings);
   });
 
-  /* TTS inputs */
-  ttsRateInput?.addEventListener("input", async (event) => {
-    const value = event.target instanceof HTMLInputElement ? Number(event.target.value) : currentSettings.ttsRate;
-    const nextSettings = { ...currentSettings, ttsRate: value };
-    applySettings(nextSettings);
-    scheduleSave(nextSettings);
-  });
-
   ttsVoiceInput?.addEventListener("change", async (event) => {
     const value = event.target instanceof HTMLSelectElement ? event.target.value : currentSettings.ttsVoice;
     const nextSettings = await saveSettings({ ...currentSettings, ttsVoice: value });
@@ -651,14 +619,12 @@ function syncOverlay(settings) {
     lineHeightInput,
     letterSpacingInput,
     wordSpacingInput,
-    ttsRateInput,
     ttsVoiceInput,
     ttsHighlightInput,
     fontScaleValue,
     lineHeightValue,
     letterSpacingValue,
-    wordSpacingValue,
-    ttsRateValue
+    wordSpacingValue
   } = overlayElements;
 
   if (enabledInput instanceof HTMLInputElement) {
@@ -705,14 +671,6 @@ function syncOverlay(settings) {
     wordSpacingValue.textContent = formatEm(settings.wordSpacing);
   }
 
-  if (ttsRateInput instanceof HTMLInputElement) {
-    ttsRateInput.value = String(settings.ttsRate ?? 1);
-  }
-
-  if (ttsRateValue) {
-    ttsRateValue.textContent = `${Number(settings.ttsRate ?? 1).toFixed(1)}×`;
-  }
-
   if (ttsVoiceInput instanceof HTMLSelectElement && settings.ttsVoice !== undefined) {
     ttsVoiceInput.value = settings.ttsVoice;
   }
@@ -736,6 +694,7 @@ function applySettings(settings) {
   document.documentElement.style.setProperty("--rao-letter-spacing", `${settings.letterSpacing}em`);
   document.documentElement.style.setProperty("--rao-word-spacing", `${settings.wordSpacing}em`);
   syncOverlay(currentSettings);
+  syncAllSpeedControls();
 }
 
 async function init() {

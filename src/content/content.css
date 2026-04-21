@@ -2,35 +2,6 @@
   all: initial;
 }
 
-.rao-feed-tts-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin: 4px 0;
-  padding: 3px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  background: #f8fafc;
-  color: #475569;
-  font: 600 12px/1.4 Arial, sans-serif;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.rao-feed-tts-btn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: #0f172a;
-}
-
-.rao-feed-tts-btn[data-tts-state="playing"],
-.rao-feed-tts-btn[data-tts-state="paused"] {
-  background: #0f172a;
-  color: #f8fafc;
-  border-color: #0f172a;
-}
-
 .rao-tts-wrapper {
   display: inline-flex;
   align-items: center;
@@ -185,6 +156,27 @@
   font-size: 11px;
 }
 
+.rao-comment-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #edeff1;
+  border-radius: 999px;
+  background: #f6f7f8;
+  color: #1c1c1c;
+  font: 600 11px/1 system-ui, -apple-system, Arial, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.rao-comment-stop:hover {
+  background: #edeff1;
+  border-color: #d3d6da;
+}
+
 .rao-comment-label {
   font: 600 12px/1 system-ui, -apple-system, Arial, sans-serif;
   color: #878a8c;
@@ -195,6 +187,34 @@
 .rao-comment-progress-track {
   width: 100%;
   margin: 0 2px;
+}
+
+.rao-speed-row {
+  display: flex;
+  gap: 4px;
+}
+
+.rao-speed-btn {
+  padding: 2px 8px;
+  border: 1px solid #edeff1;
+  border-radius: 999px;
+  background: #f6f7f8;
+  color: #878a8c;
+  font: 600 11px/1.4 system-ui, -apple-system, Arial, sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.rao-speed-btn:hover {
+  background: #edeff1;
+  border-color: #d3d6da;
+  color: #1c1c1c;
+}
+
+.rao-speed-btn.rao-speed-active {
+  background: #1a1a1b;
+  border-color: #1a1a1b;
+  color: #fff;
 }
 
 .rao-hl-word {

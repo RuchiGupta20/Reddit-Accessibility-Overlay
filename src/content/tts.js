@@ -1,13 +1,13 @@
 // TTS TODOS: 
 
-// [ ] Reduce voice options...only give 5 of the best/most natural ones
+// [X] Reduce voice options...only give 5 of the best/most natural ones
 // [ ] Add a save button to TTS settings
-// [ ] Fix play title so it doesnt open in new page
+// [X] Fix play title so it doesnt open in new page
 // [X] Make the listen button prettier
 // [X] Add progress bar to player
 // [ ] Add Focused Reading Mode (line-by-line highlighting)
-// [ ] Fix pause and play buttons (esp for comments)
-// [ ] Contemplate where playback speed setting should go 
+// [X] Fix pause and play buttons (esp for comments)
+// [X] Contemplate where playback speed setting should go 
 // [ ] What to do about images with text...
 
 var ttsVoices = [];
@@ -16,9 +16,37 @@ var ttsSession = null;
 const HL_WORD_CLASS = "rao-hl-word";
 const HL_ACTIVE_CLASS = "rao-hl-active";
 
+const VOICE_PRIORITY = [
+  "Google US English",
+  "Google UK English Female",
+  "Google UK English Male",
+  "Samantha",
+  "Alex",
+  "Zira",
+  "David",
+  "Karen",
+  "Daniel",
+  "Moira",
+];
+
+function pickBestVoices(all) {
+  const picked = [];
+  for (const name of VOICE_PRIORITY) {
+    if (picked.length >= 5) break;
+    const match = all.find(v => v.name.includes(name) && !picked.includes(v));
+    if (match) picked.push(match);
+  }
+  for (const v of all) {
+    if (picked.length >= 5) break;
+    if (!picked.includes(v)) picked.push(v);
+  }
+  return picked;
+}
+
 (function initVoices() {
   function load() {
-    ttsVoices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith("en"));
+    const all = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith("en"));
+    ttsVoices = pickBestVoices(all);
   }
   load();
   window.speechSynthesis.addEventListener("voiceschanged", () => {
