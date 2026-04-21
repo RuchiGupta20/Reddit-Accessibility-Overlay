@@ -1,20 +1,21 @@
-// TTS TODOS: 
+// TTS TODOS:
 
 // [X] Reduce voice options...only give 5 of the best/most natural ones
-// [ ] Add a save button to TTS settings
 // [X] Fix play title so it doesnt open in new page
 // [X] Make the listen button prettier
 // [X] Add progress bar to player
-// [ ] Add Focused Reading Mode (line-by-line highlighting)
+// [X] Add Focused Reading Mode (line-by-line highlighting)
+    // [ ] Make focused reading mode obvious as a feature...nothing indicates its presense rn.
 // [X] Fix pause and play buttons (esp for comments)
-// [X] Contemplate where playback speed setting should go 
+// [X] Contemplate where playback speed setting should go
+// [X] Make mute button work on browser
 // [ ] What to do about images with text...
+// [ ] It's reading the embedded video titles and stuff...
+// [ ] Add a save button to TTS settings?
 
 var ttsVoices = [];
 var ttsSession = null;
-
-const HL_WORD_CLASS = "rao-hl-word";
-const HL_ACTIVE_CLASS = "rao-hl-active";
+var tabMuted = false;
 
 const VOICE_PRIORITY = [
   "Google US English",
@@ -62,54 +63,33 @@ function populateVoiceSelect(select) {
   if (prev && [...select.options].some(o => o.value === prev)) select.value = prev;
 }
 
-function wrapAndExtract(el) {
+// Builds a list of word positions (node + offset) without mutating the DOM.
+// Used by the CSS Custom Highlight API to highlight words as TTS progresses.
+function extractWordRanges(el) {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-  const textNodes = [];
+  const words = [];
+  let text = "";
   let n;
+
   while ((n = walker.nextNode())) {
-    if (!n.parentElement.closest("button, .rao-tts-wrapper, .rao-post-player, .rao-comment-player")) {
-      textNodes.push(n);
+    if (n.parentElement.closest("button, [role='button'], svg, .rao-tts-wrapper, .rao-post-player")) continue;
+    const nodeText = n.textContent;
+    let i = 0;
+    while (i < nodeText.length) {
+      if (/\s/.test(nodeText[i])) { text += nodeText[i++]; continue; }
+      let j = i;
+      while (j < nodeText.length && !/\s/.test(nodeText[j])) j++;
+      words.push({ node: n, nodeOffset: i, length: j - i, textStart: text.length });
+      text += nodeText.slice(i, j);
+      i = j;
     }
   }
 
-  let raw = "";
-  const spans = [];
-
-  for (const tn of textNodes) {
-    const tokens = tn.textContent.split(/(\s+)/);
-    const frag = document.createDocumentFragment();
-    for (const tok of tokens) {
-      if (!tok || /^\s+$/.test(tok)) {
-        frag.appendChild(document.createTextNode(tok));
-        raw += tok;
-      } else {
-        const span = document.createElement("span");
-        span.className = HL_WORD_CLASS;
-        span.textContent = tok;
-        spans.push({ el: span, start: raw.length, length: tok.length });
-        frag.appendChild(span);
-        raw += tok;
-      }
-    }
-    tn.replaceWith(frag);
-  }
-
-  const leadingWS = raw.length - raw.trimStart().length;
-  const text = raw.trim();
-  const correctedSpans = spans
-    .map(s => ({ ...s, start: s.start - leadingWS }))
-    .filter(s => s.start >= 0);
-
-  return { text, spans: correctedSpans };
-}
-
-function unwrapWords(el) {
-  el.querySelectorAll(`.${HL_WORD_CLASS}`).forEach(s => s.replaceWith(document.createTextNode(s.textContent)));
-  el.normalize();
-}
-
-function clearWordHighlight() {
-  document.querySelectorAll(`.${HL_ACTIVE_CLASS}`).forEach(el => el.classList.remove(HL_ACTIVE_CLASS));
+  const leadingWS = text.length - text.trimStart().length;
+  return {
+    text: text.trim(),
+    words: words.map(w => ({ ...w, textStart: w.textStart - leadingWS })).filter(w => w.textStart >= 0),
+  };
 }
 
 function extractReadableText(el) {
@@ -118,6 +98,10 @@ function extractReadableText(el) {
     "button, [role='button'], svg, .rao-tts-btn, .rao-tts-wrapper, .rao-post-player, .rao-comment-player, faceplate-number, shreddit-award-button"
   ).forEach(nd => nd.remove());
   return ((clone.innerText || clone.textContent) ?? "").trim().replace(/\s+/g, " ");
+}
+
+function clearWordHighlight() {
+  CSS.highlights?.delete("rao-active-word");
 }
 
 function setPlayerState(player, state) {
@@ -137,9 +121,6 @@ function stopTTS() {
   window.speechSynthesis.cancel();
   if (!ttsSession) return;
   clearWordHighlight();
-  for (const seg of ttsSession.segments) {
-    if (seg.wrapped && seg.el) unwrapWords(seg.el);
-  }
   if (ttsSession.player) {
     setPlayerState(ttsSession.player, "idle");
     updateProgress(ttsSession.player, 0);
@@ -153,7 +134,17 @@ function getVoice() {
   return uri ? (window.speechSynthesis.getVoices().find(v => v.voiceURI === uri) ?? null) : null;
 }
 
+function showMuteToast() {
+  if (document.querySelector(".rao-mute-toast")) return;
+  const toast = document.createElement("div");
+  toast.className = "rao-mute-toast";
+  toast.textContent = "Tab is muted — unmute the tab to use text-to-speech";
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
 function startTTS(player, segments, highlightEnabled, onStateChange) {
+  if (tabMuted) { showMuteToast(); return; }
   stopTTS();
 
   let fullText = "";
@@ -163,20 +154,18 @@ function startTTS(player, segments, highlightEnabled, onStateChange) {
     const prefix = raw.label ? `${raw.label}: ` : "";
     const utteranceStart = fullText.length + prefix.length;
     let text = "";
-    let spans = [];
-    let wrapped = false;
+    let words = [];
 
     if (raw.el && highlightEnabled) {
-      const result = wrapAndExtract(raw.el);
+      const result = extractWordRanges(raw.el);
       text = result.text;
-      spans = result.spans;
-      wrapped = true;
+      words = result.words;
     } else {
       text = raw.staticText ?? ((raw.el?.innerText || raw.el?.textContent) ?? "").trim().replace(/\s+/g, " ");
     }
 
     fullText += prefix + text + " ";
-    processedSegs.push({ ...raw, text, spans, wrapped, utteranceStart, utteranceEnd: utteranceStart + text.length });
+    processedSegs.push({ ...raw, text, words, utteranceStart, utteranceEnd: utteranceStart + text.length });
   }
 
   if (!fullText.trim()) return;
@@ -201,15 +190,20 @@ function startTTS(player, segments, highlightEnabled, onStateChange) {
     clearWordHighlight();
 
     for (const seg of processedSegs) {
-      if (!seg.wrapped || !seg.spans.length) continue;
+      if (!seg.words.length) continue;
       if (ci < seg.utteranceStart - 2 || ci > seg.utteranceEnd + 10) continue;
       const pos = ci - seg.utteranceStart;
       let best = null;
-      for (const s of seg.spans) {
-        if (s.start <= pos + 2) best = s;
+      for (const w of seg.words) {
+        if (w.textStart <= pos + 2) best = w;
         else break;
       }
-      if (best) best.el.classList.add(HL_ACTIVE_CLASS);
+      if (best && CSS.highlights) {
+        const range = new Range();
+        range.setStart(best.node, best.nodeOffset);
+        range.setEnd(best.node, best.nodeOffset + best.length);
+        CSS.highlights.set("rao-active-word", new Highlight(range));
+      }
       break;
     }
   });
@@ -227,4 +221,101 @@ function startTTS(player, segments, highlightEnabled, onStateChange) {
   utterance.addEventListener("error", () => { if (ttsSession?.utterance === utterance) stopTTS(); });
 
   window.speechSynthesis.speak(utterance);
+}
+
+// --- Focused Reading Mode ---
+
+var focusSession = null;
+
+function clearFocusedReading() {
+  if (!focusSession) return;
+  CSS.highlights?.delete("rao-focused-sentence");
+  focusSession.dimEl?.removeAttribute("data-rao-dim");
+  focusSession.playBtn?.remove();
+  stopTTS();
+  focusSession = null;
+}
+
+function findSentenceRange(clickedNode, clickedOffset) {
+  const blockEl = clickedNode.parentElement?.closest("p, li, blockquote, h1, h2, h3, h4, h5, h6, td") ?? clickedNode.parentElement;
+  if (!blockEl) return null;
+
+  const walker = document.createTreeWalker(blockEl, NodeFilter.SHOW_TEXT);
+  const nodeMap = [];
+  let fullText = "";
+  let n;
+  while ((n = walker.nextNode())) {
+    nodeMap.push({ node: n, start: fullText.length });
+    fullText += n.textContent;
+  }
+
+  const entry = nodeMap.find(m => m.node === clickedNode);
+  if (!entry) return null;
+  const clickPos = entry.start + clickedOffset;
+
+  let sentenceStart = 0;
+  for (let i = clickPos - 1; i >= 1; i--) {
+    if (/[.!?]/.test(fullText[i - 1]) && /\s/.test(fullText[i])) {
+      sentenceStart = i + 1;
+      break;
+    }
+  }
+  while (sentenceStart < fullText.length && /\s/.test(fullText[sentenceStart])) sentenceStart++;
+
+  let sentenceEnd = fullText.length;
+  for (let i = clickPos; i < fullText.length; i++) {
+    if (/[.!?]/.test(fullText[i])) { sentenceEnd = i + 1; break; }
+  }
+
+  const range = document.createRange();
+  let startSet = false, endSet = false;
+  for (let i = 0; i < nodeMap.length; i++) {
+    const { node, start } = nodeMap[i];
+    const end = nodeMap[i + 1]?.start ?? fullText.length;
+    if (!startSet && sentenceStart >= start && sentenceStart < end) {
+      range.setStart(node, sentenceStart - start);
+      startSet = true;
+    }
+    if (!endSet && sentenceEnd > start && sentenceEnd <= end) {
+      range.setEnd(node, sentenceEnd - start);
+      endSet = true;
+    }
+    if (startSet && endSet) break;
+  }
+  return startSet && endSet ? range : null;
+}
+
+function activateFocusedReading(e) {
+  if (e.target.closest("#rao-root, .rao-post-player, .rao-focused-play-btn, .rao-comment-player-host")) return;
+
+  const textContainer = e.target.closest("[slot='text-body'], .RichTextJSON-root, [slot='comment'], .md");
+  if (!textContainer) { clearFocusedReading(); return; }
+
+  const caret = document.caretRangeFromPoint?.(e.clientX, e.clientY);
+  if (!caret || caret.startContainer.nodeType !== Node.TEXT_NODE) { clearFocusedReading(); return; }
+
+  const range = findSentenceRange(caret.startContainer, caret.startOffset);
+  if (!range || range.collapsed) { clearFocusedReading(); return; }
+
+  clearFocusedReading();
+
+  if (CSS.highlights) CSS.highlights.set("rao-focused-sentence", new Highlight(range));
+  textContainer.setAttribute("data-rao-dim", "true");
+
+  const rect = range.getBoundingClientRect();
+  const btn = document.createElement("button");
+  btn.className = "rao-focused-play-btn";
+  btn.type = "button";
+  btn.textContent = "▶ Play";
+  btn.style.top = `${rect.top + window.scrollY - 38}px`;
+  btn.style.left = `${rect.left + window.scrollX}px`;
+  document.body.appendChild(btn);
+
+  const text = range.toString().trim();
+  btn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    startTTS(null, [{ label: "", el: null, staticText: text }], false);
+  });
+
+  focusSession = { dimEl: textContainer, playBtn: btn };
 }

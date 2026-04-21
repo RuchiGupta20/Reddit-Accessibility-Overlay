@@ -79,11 +79,10 @@ function scheduleSave(nextSettings) {
 }
 
 /* TTS start */
+var speedSyncRegistry = [];
+
 function syncAllSpeedControls() {
-  const rate = currentSettings.ttsRate ?? 1;
-  document.querySelectorAll(".rao-speed-btn").forEach(b =>
-    b.classList.toggle("rao-speed-active", Number(b.dataset.rate) === rate)
-  );
+  speedSyncRegistry.forEach(fn => fn());
 }
 
 function buildSpeedControls(onRestart) {
@@ -93,7 +92,14 @@ function buildSpeedControls(onRestart) {
     `<button class="rao-speed-btn" data-rate="${r}" type="button">${r}×</button>`
   ).join("");
 
-  row.querySelectorAll(".rao-speed-btn").forEach(btn => btn.addEventListener("click", (e) => {
+  const btns = row.querySelectorAll(".rao-speed-btn");
+  const sync = () => {
+    const rate = currentSettings.ttsRate ?? 1;
+    btns.forEach(b => b.classList.toggle("rao-speed-active", Number(b.dataset.rate) === rate));
+  };
+  speedSyncRegistry.push(sync);
+
+  btns.forEach(btn => btn.addEventListener("click", (e) => {
     e.stopPropagation();
     const nextSettings = { ...currentSettings, ttsRate: Number(btn.dataset.rate) };
     applySettings(nextSettings);
@@ -101,7 +107,7 @@ function buildSpeedControls(onRestart) {
     onRestart?.();
   }));
 
-  syncAllSpeedControls();
+  sync();
   return row;
 }
 
@@ -168,6 +174,7 @@ function createPostPlayer(post) {
 function createCommentPlayer(comment) {
   // Shadow DOM isolates our mutations from Reddit's component observers, preventing flicker
   const host = document.createElement("span");
+  host.className = "rao-comment-player-host";
   host.style.cssText = "display:inline-flex;align-items:center;vertical-align:middle;margin-left:6px;";
   const shadow = host.attachShadow({ mode: "open" });
 
@@ -184,7 +191,7 @@ function createCommentPlayer(comment) {
     <div class="rao-comment-player-row">
       <button class="rao-ctrl rao-ctrl-back rao-comment-back" type="button" title="Restart" style="display:none">⏮</button>
       <button class="rao-ctrl rao-ctrl-play rao-comment-play" type="button" aria-label="Play">▶</button>
-      <button class="rao-ctrl rao-comment-stop" type="button" style="display:none">⏹ Stop</button>
+      <button class="rao-ctrl rao-comment-stop" type="button" title="Stop" style="display:none">⏹</button>
       <span class="rao-comment-label">Listen</span>
     </div>
     <div class="rao-comment-progress-track" style="display:none">
@@ -205,7 +212,7 @@ function createCommentPlayer(comment) {
 
   const getSegs = () => {
     const bodyEl = comment.querySelector("[slot='comment'], .md");
-    return [{ label: "", el: null, staticText: extractReadableText(bodyEl ?? comment) }];
+    return [{ label: "", el: bodyEl ?? comment }];
   };
 
   const syncUI = (state) => {
@@ -217,7 +224,7 @@ function createCommentPlayer(comment) {
     speedRow.style.display = active ? "" : "none";
   };
 
-  const play = () => startTTS(wrapper, getSegs(), false, syncUI);
+  const play = () => startTTS(wrapper, getSegs(), currentSettings.ttsHighlight ?? true, syncUI);
 
   backBtn.addEventListener("click", (e) => { e.stopPropagation(); play(); });
 
@@ -276,6 +283,8 @@ function startTTSObserver() {
       if (location.href !== lastUrl) {
         lastUrl = location.href;
         stopTTS();
+        clearFocusedReading();
+        speedSyncRegistry = [];
       }
       injectTTSButtons();
     }, 150);
@@ -707,6 +716,19 @@ async function init() {
   buildOverlay(root);
   applySettings(settings);
   startTTSObserver();
+  document.addEventListener("click", activateFocusedReading);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") clearFocusedReading(); });
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === "TAB_MUTED")   { tabMuted = true;  stopTTS(); }
+    if (msg.type === "TAB_UNMUTED") { tabMuted = false; }
+  });
+
+  chrome.runtime.sendMessage({ type: "PING" }, (res) => {
+    if (!res?.tabId) return;
+    chrome.runtime.sendMessage({ type: "GET_MUTE_STATE", tabId: res.tabId }, (r) => {
+      tabMuted = r?.muted ?? false;
+    });
+  });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "sync" || !changes[STORAGE_KEY]?.newValue) {

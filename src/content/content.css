@@ -157,24 +157,9 @@
 }
 
 .rao-comment-stop {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  width: 26px;
   height: 26px;
-  padding: 0 10px;
-  border: 1px solid #edeff1;
-  border-radius: 999px;
-  background: #f6f7f8;
-  color: #1c1c1c;
-  font: 600 11px/1 system-ui, -apple-system, Arial, sans-serif;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.rao-comment-stop:hover {
-  background: #edeff1;
-  border-color: #d3d6da;
+  font-size: 11px;
 }
 
 .rao-comment-label {
@@ -217,15 +202,62 @@
   color: #fff;
 }
 
-.rao-hl-word {
-  border-radius: 2px;
-  transition: background 0.1s;
+::highlight(rao-active-word) {
+  background-color: #fde047;
+  color: #0f172a;
 }
 
-.rao-hl-word.rao-hl-active {
-  background: #fde047;
+::highlight(rao-focused-sentence) {
+  background-color: #fef9c3;
   color: #0f172a;
-  border-radius: 3px;
+}
+
+[data-rao-dim] {
+  color: rgba(28, 28, 28, 0.2) !important;
+  transition: color 0.15s;
+}
+
+.rao-focused-play-btn {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px;
+  border: none;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #f8fafc;
+  font: 600 12px/1.4 system-ui, -apple-system, Arial, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  z-index: 999999;
+  transition: background 0.15s;
+}
+
+.rao-focused-play-btn:hover {
+  background: #1e293b;
+}
+
+.rao-mute-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #1a1a1b;
+  color: #f8fafc;
+  font: 600 13px/1.4 system-ui, -apple-system, Arial, sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  z-index: 999999;
+  animation: rao-toast-in 0.2s ease;
+}
+
+@keyframes rao-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 #rao-root[data-hidden="true"] {
