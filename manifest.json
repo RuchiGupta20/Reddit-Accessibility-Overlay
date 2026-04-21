@@ -24,6 +24,7 @@
         "https://www.reddit.com/*"
       ],
       "js": [
+        "src/content/tts.js",
         "src/content/content.js"
       ],
       "css": [

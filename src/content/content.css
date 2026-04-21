@@ -2,6 +2,212 @@
   all: initial;
 }
 
+.rao-feed-tts-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0;
+  padding: 3px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font: 600 12px/1.4 Arial, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.rao-feed-tts-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.rao-feed-tts-btn[data-tts-state="playing"],
+.rao-feed-tts-btn[data-tts-state="paused"] {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: #0f172a;
+}
+
+.rao-tts-wrapper {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.rao-tts-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #0f172a;
+  font: 600 12px/1.4 Arial, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.rao-tts-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.rao-tts-btn[data-tts-state="playing"],
+.rao-tts-btn[data-tts-state="paused"] {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: #0f172a;
+}
+
+.rao-ctrl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #edeff1;
+  border-radius: 50%;
+  background: #f6f7f8;
+  color: #1c1c1c;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.rao-ctrl:hover { background: #edeff1; border-color: #d3d6da; }
+
+.rao-ctrl-play {
+  width: 36px;
+  height: 36px;
+  background: #1a1a1b;
+  color: #fff;
+  font-size: 14px;
+  border: none;
+}
+
+.rao-ctrl-play:hover { background: #3c3c3d; }
+
+.rao-post-player[data-tts-state="playing"] .rao-ctrl-play,
+.rao-comment-player[data-tts-state="playing"] .rao-ctrl-play {
+  background: #ff4500;
+}
+
+.rao-post-player[data-tts-state="playing"] .rao-ctrl-play:hover,
+.rao-comment-player[data-tts-state="playing"] .rao-ctrl-play:hover {
+  background: #e03d00;
+}
+
+.rao-player-progress-track,
+.rao-comment-progress-track {
+  height: 3px;
+  border-radius: 999px;
+  background: #edeff1;
+  overflow: hidden;
+}
+
+.rao-player-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: #ff4500;
+  transition: width 0.2s linear;
+}
+
+.rao-post-player {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 10px 14px;
+  border: 1px solid #edeff1;
+  border-radius: 8px;
+  background: #ffffff;
+  font: 13px/1.4 system-ui, -apple-system, Arial, sans-serif;
+  color: #1c1c1c;
+}
+
+.rao-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rao-player-header { justify-content: space-between; }
+
+.rao-player-title {
+  font-weight: 600;
+  font-size: 11px;
+  color: #878a8c;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rao-player-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rao-comment-player {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.rao-comment-player-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 4px;
+  border: 1px solid #edeff1;
+  border-radius: 999px;
+  background: #f6f7f8;
+  cursor: default;
+}
+
+.rao-comment-player[data-tts-state="playing"] .rao-comment-player-row,
+.rao-comment-player[data-tts-state="paused"]  .rao-comment-player-row {
+  background: #ffffff;
+  border-color: #d3d6da;
+}
+
+.rao-comment-play {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+}
+
+.rao-comment-label {
+  font: 600 12px/1 system-ui, -apple-system, Arial, sans-serif;
+  color: #878a8c;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.rao-comment-progress-track {
+  width: 100%;
+  margin: 0 2px;
+}
+
+.rao-hl-word {
+  border-radius: 2px;
+  transition: background 0.1s;
+}
+
+.rao-hl-word.rao-hl-active {
+  background: #fde047;
+  color: #0f172a;
+  border-radius: 3px;
+}
+
 #rao-root[data-hidden="true"] {
   display: none;
 }
