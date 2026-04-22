@@ -18,6 +18,23 @@ Minimal browser extension scaffold for building a Reddit overlay focused on dysl
 3. Choose `Load unpacked`.
 4. Select this project folder.
 
+## Local AI summarization
+
+This project includes a local summarization flow so your Groq API key stays out of the extension client code.
+
+1. Copy `.env.local.example` to `.env.local`.
+2. Add your `GROQ_API_KEY` to `.env.local`.
+3. Start the local summarization server:
+
+   ```bash
+   node server/summarize-server.js
+   ```
+
+4. Reload the unpacked extension in Chrome or Edge.
+5. Open a Reddit post and use the `Summarize this thread` button in the Reading Tools panel.
+
+The `.env.local` file is ignored by git and should not be committed.
+
 ## Suggested next steps
 
 1. Add real readability settings in `src/shared/constants.js`.

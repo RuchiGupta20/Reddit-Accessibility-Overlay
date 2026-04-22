@@ -16,6 +16,11 @@ const FONT_STACKS = {
 let currentSettings = { ...DEFAULT_SETTINGS };
 let overlayElements = null;
 let persistTimer = null;
+let summaryState = {
+  loading: false,
+  status: "",
+  summary: ""
+};
 
 function isRedditPage() {
   return window.location.hostname === "www.reddit.com";
@@ -79,6 +84,174 @@ function formatEm(value) {
   return `${Number(value).toFixed(2)}em`;
 }
 
+function normalizeText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function limitText(value, maxLength) {
+  const text = normalizeText(value);
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 1).trim()}...`;
+}
+
+function getFirstText(selectors, maxLength = 2200) {
+  for (const selector of selectors) {
+    const nodes = document.querySelectorAll(selector);
+    for (const node of nodes) {
+      const text = limitText(node.textContent || node.innerText, maxLength);
+      if (text) {
+        return text;
+      }
+    }
+  }
+
+  return "";
+}
+
+function getTextList(selectors, maxItems = 20, maxLength = 600) {
+  const texts = [];
+  const seen = new Set();
+
+  for (const selector of selectors) {
+    const nodes = document.querySelectorAll(selector);
+    for (const node of nodes) {
+      const text = limitText(node.textContent || node.innerText, maxLength);
+      if (!text || seen.has(text)) {
+        continue;
+      }
+
+      seen.add(text);
+      texts.push(text);
+
+      if (texts.length >= maxItems) {
+        return texts;
+      }
+    }
+  }
+
+  return texts;
+}
+
+function collectThreadContent() {
+  const title = getFirstText(
+    [
+      "shreddit-post h1",
+      "[data-testid='post-container'] h1",
+      "main h1"
+    ],
+    300
+  );
+
+  const body = getFirstText(
+    [
+      "shreddit-post [slot='text-body']",
+      "shreddit-post [data-click-id='text']",
+      "[data-testid='post-container'] [data-click-id='text']",
+      "[data-testid='post-container'] [slot='text-body']",
+      "article [data-click-id='text']",
+      "article p"
+    ],
+    4000
+  );
+
+  const comments = getTextList(
+    [
+      "shreddit-comment [slot='comment']",
+      "shreddit-comment [data-testid='comment']",
+      "[data-testid='comment'] [slot='comment']",
+      "[data-testid='comment'] p",
+      "[data-testid='comment'] div[style] p"
+    ],
+    20,
+    700
+  );
+
+  return {
+    url: window.location.href,
+    title,
+    body,
+    comments
+  };
+}
+
+function setSummaryState(nextState) {
+  summaryState = {
+    ...summaryState,
+    ...nextState
+  };
+
+  if (!overlayElements) {
+    return;
+  }
+
+  const {
+    summaryButton,
+    summaryStatus,
+    summaryOutput
+  } = overlayElements;
+
+  if (summaryButton instanceof HTMLButtonElement) {
+    summaryButton.disabled = summaryState.loading;
+    summaryButton.textContent = summaryState.loading ? "Summarizing..." : "Summarize this thread";
+  }
+
+  if (summaryStatus) {
+    summaryStatus.textContent = summaryState.status;
+  }
+
+  if (summaryOutput) {
+    summaryOutput.textContent = summaryState.summary;
+    summaryOutput.toggleAttribute("hidden", !summaryState.summary);
+  }
+}
+
+async function summarizeCurrentThread() {
+  const payload = collectThreadContent();
+
+  if (!payload.title && !payload.body && payload.comments.length === 0) {
+    setSummaryState({
+      loading: false,
+      status: "I couldn't find enough post text on this page to summarize.",
+      summary: ""
+    });
+    return;
+  }
+
+  setSummaryState({
+    loading: true,
+    status: "Generating a summary from the post and top comments...",
+    summary: ""
+  });
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "SUMMARIZE_THREAD",
+      payload
+    });
+
+    if (!response?.ok) {
+      throw new Error(response?.error || "Unable to summarize this thread right now.");
+    }
+
+    setSummaryState({
+      loading: false,
+      status: "Summary ready.",
+      summary: response.summary
+    });
+  } catch (error) {
+    setSummaryState({
+      loading: false,
+      status: error instanceof Error ? error.message : "Unable to summarize this thread right now.",
+      summary: ""
+    });
+  }
+}
+
 function buildOverlay(root) {
   const shadow = root.shadowRoot ?? root.attachShadow({ mode: "open" });
 
@@ -86,6 +259,31 @@ function buildOverlay(root) {
     <style>
       :host {
         all: initial;
+      }
+
+      :host {
+        color-scheme: light dark;
+        --rao-panel-bg: #ffffff;
+        --rao-panel-text: #0f172a;
+        --rao-panel-muted: #475569;
+        --rao-panel-border: #cbd5e1;
+        --rao-panel-accent: #2563eb;
+        --rao-launcher-bg: #0f172a;
+        --rao-launcher-text: #f8fafc;
+        --rao-panel-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :host {
+          --rao-panel-bg: #18202a;
+          --rao-panel-text: #e5edf5;
+          --rao-panel-muted: #aeb8c4;
+          --rao-panel-border: #314152;
+          --rao-panel-accent: #7cb4ff;
+          --rao-launcher-bg: #223142;
+          --rao-launcher-text: #f8fafc;
+          --rao-panel-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+        }
       }
 
       .rao-launcher {
@@ -96,8 +294,8 @@ function buildOverlay(root) {
         border: 0;
         border-radius: 999px;
         padding: 12px 16px;
-        background: #0f172a;
-        color: #f8fafc;
+        background: var(--rao-launcher-bg);
+        color: var(--rao-launcher-text);
         font: 600 14px/1.2 Arial, sans-serif;
         box-shadow: 0 12px 28px rgba(15, 23, 42, 0.24);
         cursor: pointer;
@@ -108,13 +306,17 @@ function buildOverlay(root) {
         right: 16px;
         bottom: 72px;
         width: 320px;
+        max-height: calc(100vh - 96px);
         z-index: 2147483647;
         border-radius: 16px;
         padding: 16px;
-        background: #ffffff;
-        color: #0f172a;
+        background: var(--rao-panel-bg);
+        color: var(--rao-panel-text);
         font: 14px/1.5 Arial, sans-serif;
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
+        box-shadow: var(--rao-panel-shadow);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
       }
 
       .rao-panel[hidden] {
@@ -154,7 +356,7 @@ function buildOverlay(root) {
       .rao-value {
         min-width: 64px;
         text-align: right;
-        color: #2563eb;
+        color: var(--rao-panel-accent);
         font-variant-numeric: tabular-nums;
       }
 
@@ -164,22 +366,61 @@ function buildOverlay(root) {
       }
 
       .rao-select {
-        border: 1px solid #cbd5e1;
+        border: 1px solid var(--rao-panel-border);
         border-radius: 10px;
         padding: 10px 12px;
-        background: #ffffff;
+        background: var(--rao-panel-bg);
         color: inherit;
         font: inherit;
       }
 
       .rao-hint {
-        color: #475569;
+        color: var(--rao-panel-muted);
         font-size: 12px;
       }
 
       .rao-link {
-        color: #2563eb;
+        color: var(--rao-panel-accent);
         text-decoration: none;
+      }
+
+      .rao-button {
+        width: 100%;
+        border: 0;
+        border-radius: 10px;
+        padding: 11px 12px;
+        background: var(--rao-panel-accent);
+        color: #ffffff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .rao-button:disabled {
+        opacity: 0.7;
+        cursor: wait;
+      }
+
+      .rao-summary-status {
+        margin: 10px 0 0;
+        color: var(--rao-panel-muted);
+        font-size: 12px;
+      }
+
+      .rao-summary-output {
+        margin: 12px 0 0;
+        border: 1px solid var(--rao-panel-border);
+        border-radius: 12px;
+        padding: 12px;
+        max-height: min(320px, 40vh);
+        background: color-mix(in srgb, var(--rao-panel-bg) 92%, var(--rao-panel-accent) 8%);
+        color: inherit;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+
+      .rao-summary-output[hidden] {
+        display: none;
       }
     </style>
     <button class="rao-launcher" type="button" aria-expanded="false">
@@ -237,6 +478,11 @@ function buildOverlay(root) {
         </span>
         <input class="rao-input rao-word-spacing" type="range" min="0" max="0.3" step="0.02" />
       </label>
+      <div class="rao-row">
+        <button class="rao-button rao-summary-button" type="button">Summarize this thread</button>
+        <p class="rao-summary-status" aria-live="polite"></p>
+        <div class="rao-summary-output" hidden></div>
+      </div>
       <a class="rao-link" href="${chrome.runtime.getURL("src/options/options.html")}" target="_blank" rel="noreferrer">
         Open settings
       </a>
@@ -256,6 +502,9 @@ function buildOverlay(root) {
   const lineHeightValue = shadow.querySelector(".rao-line-height-value");
   const letterSpacingValue = shadow.querySelector(".rao-letter-spacing-value");
   const wordSpacingValue = shadow.querySelector(".rao-word-spacing-value");
+  const summaryButton = shadow.querySelector(".rao-summary-button");
+  const summaryStatus = shadow.querySelector(".rao-summary-status");
+  const summaryOutput = shadow.querySelector(".rao-summary-output");
 
   overlayElements = {
     enabledInput,
@@ -268,7 +517,10 @@ function buildOverlay(root) {
     fontScaleValue,
     lineHeightValue,
     letterSpacingValue,
-    wordSpacingValue
+    wordSpacingValue,
+    summaryButton,
+    summaryStatus,
+    summaryOutput
   };
 
   launcher?.addEventListener("click", () => {
@@ -355,6 +607,12 @@ function buildOverlay(root) {
     applySettings(nextSettings);
     scheduleSave(nextSettings);
   });
+
+  summaryButton?.addEventListener("click", async () => {
+    await summarizeCurrentThread();
+  });
+
+  setSummaryState(summaryState);
 }
 
 function syncOverlay(settings) {
