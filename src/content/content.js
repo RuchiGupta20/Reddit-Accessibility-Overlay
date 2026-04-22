@@ -181,6 +181,33 @@ function buildOverlay(root) {
         color: #2563eb;
         text-decoration: none;
       }
+      
+      /*Reminder toast*/
+      .rao-toast {
+        position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+        z-index: 2147483647; min-width: 280px; max-width: 420px;
+        border-radius: 14px; padding: 14px 18px;
+        background: #0f172a; color: #f8fafc;
+        font: 14px/1.5 Arial, sans-serif;
+        box-shadow: 0 12px 32px rgba(15,23,42,0.32);
+        display: flex; flex-direction: column; gap: 8px;
+        animation: rao-slide-in 0.25s ease;
+      }
+      .rao-toast[hidden] { display: none; }
+      .rao-toast-title { font-weight: 700; font-size: 15px; }
+      .rao-toast-goal { color: #93c5fd; font-style: italic; }
+      .rao-toast-body { color: #cbd5e1; }
+      .rao-toast-close {
+        align-self: flex-end; border: 0; background: transparent;
+        color: #94a3b8; font-size: 13px; cursor: pointer; padding: 0;
+      }
+      .rao-toast-end { background: #7c3aed; }
+ 
+      @keyframes rao-slide-in {
+        from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+        to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+      
     </style>
     <button class="rao-launcher" type="button" aria-expanded="false">
       Reading Tools
@@ -241,6 +268,13 @@ function buildOverlay(root) {
         Open settings
       </a>
     </section>
+    <!-- Reminder/end toast (hidden by default) -->
+    <div class="rao-toast" hidden role="alert" aria-live="assertive">
+      <span class="rao-toast-title"></span>
+      <span class="rao-toast-goal"></span>
+      <span class="rao-toast-body"></span>
+      <button class="rao-toast-close" type="button">Dismiss</button>
+    </div>
   `;
 
   const launcher = shadow.querySelector(".rao-launcher");
@@ -256,6 +290,11 @@ function buildOverlay(root) {
   const lineHeightValue = shadow.querySelector(".rao-line-height-value");
   const letterSpacingValue = shadow.querySelector(".rao-letter-spacing-value");
   const wordSpacingValue = shadow.querySelector(".rao-word-spacing-value");
+  const toast = shadow.querySelector(".rao-toast");
+  const toastTitle = shadow.querySelector(".rao-toast-title");
+  const toastGoal = shadow.querySelector(".rao-toast-goal");
+  const toastBody = shadow.querySelector(".rao-toast-body");
+  const toastClose = shadow.querySelector(".rao-toast-close");
 
   overlayElements = {
     enabledInput,
@@ -271,6 +310,31 @@ function buildOverlay(root) {
     wordSpacingValue
   };
 
+  // ── Toast helpers ──
+  let toastTimer = null;
+
+  function showToast({ title, goal, body, isEnd = false, autoDismissMs = 12000 }) {
+    if (!toast) return;
+    if (toastTitle) toastTitle.textContent = title;
+    if (toastGoal) toastGoal.textContent = goal ? `Goal: ${goal}` : "";
+    if (toastBody) toastBody.textContent = body;
+    toast.classList.toggle("rao-toast-end", isEnd);
+    toast.removeAttribute("hidden");
+    if (toastTimer) clearTimeout(toastTimer);
+    if (!isEnd) {
+      toastTimer = setTimeout(() => toast.setAttribute("hidden", ""), autoDismissMs);
+    }
+  }
+
+  toastClose?.addEventListener("click", () => {
+    toast?.setAttribute("hidden", "");
+    if (toastTimer) clearTimeout(toastTimer);
+  });
+
+  // Store showToast on the shadow so the message listener can call it
+  shadow._showToast = showToast;
+
+  // ── Panel toggle ───────────────────────────────────────────────────────────
   launcher?.addEventListener("click", () => {
     const isHidden = panel?.hasAttribute("hidden");
     if (!panel) {
@@ -436,6 +500,39 @@ function applySettings(settings) {
   document.documentElement.style.setProperty("--rao-word-spacing", `${settings.wordSpacing}em`);
   syncOverlay(currentSettings);
 }
+
+//Time awareness message listener
+function getRootShadow() {
+  return document.getElementById(ROOT_ID)?.shadowRoot ?? null;
+}
+
+chrome.runtime.onMessage.addListener((message) => {
+  const shadow = getRootShadow();
+  const showToast = shadow?._showToast;
+  if (!showToast) return;
+
+  if (message?.type === "REMINDER_NUDGE") {
+    const { goal, elapsed, duration } = message.payload;
+    const remaining = Math.max(0, duration - elapsed);
+    showToast({
+      title: "⏱ Time check",
+      goal,
+      body: `${elapsed} min elapsed · ${remaining} min remaining. Still on track?`,
+      isEnd: false
+    });
+  }
+
+  if (message?.type === "SESSION_ENDED") {
+    const { goal, duration } = message.payload;
+    showToast({
+      title: "✅ Session complete",
+      goal,
+      body: `Your ${duration}-minute session is up. Great job staying intentional.`,
+      isEnd: true,
+      autoDismissMs: 0 // stays until dismissed
+    });
+  }
+});
 
 async function init() {
   if (!isRedditPage()) {

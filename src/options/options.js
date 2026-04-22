@@ -1,5 +1,16 @@
 import { getSettings, saveSettings } from "../shared/storage.js";
 
+//Time awareness elements
+const sessionGoalInput = document.getElementById("session-goal");
+const sessionDurationInput = document.getElementById("session-duration");
+const reminderIntervalInput = document.getElementById("reminder-interval");
+const sessionDurationValue = document.getElementById("session-duration-value");
+const reminderIntervalValue = document.getElementById("reminder-interval-value");
+const sessionStartBtn = document.getElementById("session-start");
+const sessionStopBtn = document.getElementById("session-stop");
+const sessionStatusEl = document.getElementById("session-status");
+
+//Reading aids elements
 const enabledInput = document.getElementById("enabled");
 const reducedStimulationInput = document.getElementById("reduced-stimulation");
 const fontPresetInput = document.getElementById("font-preset");
@@ -12,8 +23,10 @@ const lineHeightValue = document.getElementById("line-height-value");
 const letterSpacingValue = document.getElementById("letter-spacing-value");
 const wordSpacingValue = document.getElementById("word-spacing-value");
 const status = document.getElementById("status");
+
 let currentSettings = null;
 let persistTimer = null;
+let sessionTickInterval = null;
 
 function setStatus(message) {
   if (status) {
@@ -75,6 +88,19 @@ function syncForm(settings) {
   if (wordSpacingValue) {
     wordSpacingValue.textContent = formatEm(settings.wordSpacing);
   }
+
+  //Sync time awareness defaults from settings
+  if (sessionDurationInput instanceof HTMLInputElement) {
+    sessionDurationInput.value = String(settings.sessionDuration ?? 25);
+    if (sessionDurationValue) sessionDurationValue.textContent = `${settings.sessionDuration ?? 25} min`;
+  }
+  if (reminderIntervalInput instanceof HTMLInputElement) {
+    reminderIntervalInput.value = String(settings.reminderInterval ?? 10);
+    if (reminderIntervalValue) reminderIntervalValue.textContent = `${settings.reminderInterval ?? 10} min`;
+  }
+  if (sessionGoalInput instanceof HTMLInputElement) {
+    sessionGoalInput.value = settings.sessionGoal ?? "";
+  }
 }
 
 async function updateSettings(partialSettings) {
@@ -124,9 +150,47 @@ function scheduleSettingsSave(partialSettings) {
   }, 250);
 }
 
+//Session UI
+function setSessionUI(active, session = null) {
+  if (sessionStartBtn) sessionStartBtn.disabled = active;
+  if (sessionStopBtn) sessionStopBtn.disabled = !active;
+
+  if (!active) {
+    clearInterval(sessionTickInterval);
+    sessionTickInterval = null;
+    if (sessionStatusEl) sessionStatusEl.textContent = "";
+    return;
+  }
+
+  // Live elapsed timer
+  function tick() {
+    if (!session?.startedAt) return;
+    const elapsed = Math.floor((Date.now() - session.startedAt) / 60000);
+    const remaining = Math.max(0, session.duration - elapsed);
+    if (sessionStatusEl) {
+      sessionStatusEl.textContent =
+          `⏱ Session active — "${session.goal || "No goal set"}" · ${elapsed}m elapsed · ${remaining}m remaining`;
+    }
+  }
+
+  tick();
+  sessionTickInterval = setInterval(tick, 15000);
+}
+
+async function refreshSessionState() {
+  const response = await chrome.runtime.sendMessage({ type: "SESSION_GET" }).catch(() => null);
+  if (response?.active) {
+    setSessionUI(true, response);
+  } else {
+    setSessionUI(false);
+  }
+}
+
+//Init
 async function init() {
   const settings = await getSettings();
   syncForm(settings);
+  await refreshSessionState();
 
   if (enabledInput instanceof HTMLInputElement) {
     enabledInput.addEventListener("change", async () => {
@@ -189,6 +253,74 @@ async function init() {
       };
       previewSettings(partialSettings);
       scheduleSettingsSave(partialSettings);
+    });
+  }
+
+  // Time awareness listeners
+  // Session duration input
+  if (sessionDurationInput instanceof HTMLInputElement) {
+    sessionDurationInput.addEventListener("input", () => {
+      const val = Number(sessionDurationInput.value);
+
+      if (sessionDurationValue) {
+        sessionDurationValue.textContent = `${val} min`;
+      }
+
+      scheduleSettingsSave({ sessionDuration: val });
+    });
+  }
+
+  // Reminder interval input
+  if (reminderIntervalInput instanceof HTMLInputElement) {
+    reminderIntervalInput.addEventListener("input", () => {
+      const val = Number(reminderIntervalInput.value);
+
+      if (reminderIntervalValue) {
+        reminderIntervalValue.textContent = `${val} min`;
+      }
+
+      scheduleSettingsSave({ reminderInterval: val });
+    });
+  }
+
+  // Session goal input
+  if (sessionGoalInput instanceof HTMLInputElement) {
+    sessionGoalInput.addEventListener("input", () => {
+      scheduleSettingsSave({ sessionGoal: sessionGoalInput.value });
+    });
+  }
+
+  // Start session button
+  if (sessionStartBtn instanceof HTMLButtonElement) {
+    sessionStartBtn.addEventListener("click", async () => {
+      const goal = (sessionGoalInput instanceof HTMLInputElement)
+          ? sessionGoalInput.value.trim()
+          : "";
+
+      const duration = (sessionDurationInput instanceof HTMLInputElement)
+          ? Number(sessionDurationInput.value)
+          : 25;
+
+      const reminderInterval = (reminderIntervalInput instanceof HTMLInputElement)
+          ? Number(reminderIntervalInput.value)
+          : 10;
+
+      const response = await chrome.runtime.sendMessage({
+        type: "SESSION_START",
+        payload: { goal, duration, reminderInterval }
+      }).catch(() => null);
+
+      if (response && response.ok) {
+        setSessionUI(true, response.session);
+      }
+    });
+  }
+
+  // Stop session button
+  if (sessionStopBtn instanceof HTMLButtonElement) {
+    sessionStopBtn.addEventListener("click", async () => {
+      await chrome.runtime.sendMessage({ type: "SESSION_STOP" }).catch(() => {});
+      setSessionUI(false);
     });
   }
 
