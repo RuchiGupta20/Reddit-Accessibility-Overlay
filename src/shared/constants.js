@@ -7,5 +7,8 @@ export const DEFAULT_SETTINGS = {
   fontScale: 1,
   lineHeight: 1.6,
   letterSpacing: 0,
-  wordSpacing: 0
+  wordSpacing: 0,
+  ttsRate: 1,
+  ttsVoice: "",
+  ttsHighlight: true
 };

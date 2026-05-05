@@ -31,6 +31,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     return true;
   }
+
+  if (message?.type === "GET_MUTE_STATE" && message.tabId) {
+    chrome.tabs.get(message.tabId)
+      .then(tab => sendResponse({ muted: tab.mutedInfo?.muted ?? false }))
+      .catch(() => sendResponse({ muted: false }));
+    return true;
+  }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.mutedInfo !== undefined) {
+    const type = changeInfo.mutedInfo.muted ? "TAB_MUTED" : "TAB_UNMUTED";
+    chrome.tabs.sendMessage(tabId, { type }).catch(() => {});
+  }
 });
 
 async function summarizeThread(payload) {

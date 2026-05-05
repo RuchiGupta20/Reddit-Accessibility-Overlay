@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CogAccess — Lo-Fi Wireframes — Team 10</title>
+<link href="https://fonts.cdnfonts.com/css/opendyslexic" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    min-height: 100vh;
+    background: #e8e6e1;
+  }
+
+  /* Top bar */
+  .topbar {
+    background: #222;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .topbar-title { font-size: 18px; color: #fff; font-weight: 700; }
+  .topbar-sub { font-size: 11px; color: #aaa; margin-left: 12px; }
+
+  /* Persona toggle bar */
+  .persona-bar {
+    display: flex;
+    background: #333;
+    padding: 0 20px;
+    border-bottom: 1px solid #555;
+  }
+  .persona-btn {
+    padding: 12px 24px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: #888;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .persona-btn.active-dave {
+    border-bottom-color: #e85d26;
+    background: #444;
+    color: #fff;
+  }
+  .persona-btn.active-alysia {
+    border-bottom-color: #7b5ea7;
+    background: #444;
+    color: #fff;
+  }
+
+  /* Tab bar */
+  .tabbar {
+    display: flex;
+    background: #444;
+    padding: 0 20px;
+    flex-wrap: wrap;
+  }
+  .tabbar button {
+    padding: 10px 16px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: #aaa;
+    font-size: 11.5px;
+    font-weight: 400;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .tabbar button.active-dave {
+    border-bottom-color: #e85d26;
+    background: #555;
+    color: #fff;
+    font-weight: 700;
+  }
+  .tabbar button.active-alysia {
+    border-bottom-color: #7b5ea7;
+    background: #555;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  /* Screen container */
+  .screen-container {
+    max-width: 860px;
+    margin: 20px auto;
+    background: #faf9f7;
+    border-radius: 8px;
+    border: 1.5px solid #ccc;
+    overflow: hidden;
+    min-height: 520px;
+    position: relative;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  .screen-container.alysia-font {
+    font-family: 'OpenDyslexic', sans-serif;
+  }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Legend */
+  .legend {
+    max-width: 860px;
+    margin: 0 auto 24px;
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    font-size: 11px;
+    color: #888;
+    flex-wrap: wrap;
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  /* Shared wireframe pieces */
+  .wirebox { border: 1.5px solid #bbb; border-radius: 6px; background: #f4f3f0; }
+  .wirebox-dashed { border: 2px dashed #aaa; border-radius: 6px; background: #f4f3f0; }
+  .placeholder { border-radius: 4px; background: #d5d3cf; }
+  .placeholder-dark { background: #b0aeaa; }
+
+  .annotation {
+    position: absolute; color: #fff; padding: 6px 12px; border-radius: 8px;
+    font-size: 11px; font-weight: 700; line-height: 1.3; max-width: 200px;
+    z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.15); white-space: pre-line;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  /* Reddit nav */
+  .reddit-nav {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-bottom: 1.5px solid #ddd; background: #fff;
+  }
+  .reddit-logo { width: 22px; height: 22px; border-radius: 50%; background: #ff4500; }
+  .reddit-name { font-weight: 700; font-size: 14px; color: #333; }
+  .reddit-search {
+    flex: 1; max-width: 340px; height: 30px;
+    background: #f4f3f0; border-radius: 16px; border: 1px solid #ddd;
+    display: flex; align-items: center; padding-left: 12px;
+    font-size: 11px; color: #aaa;
+  }
+  .cogaccess-badge-dave {
+    padding: 4px 10px; border-radius: 12px;
+    background: #f0f7ff; border: 1.5px solid #2d7fc1;
+    font-size: 10px; color: #2d7fc1; font-weight: 700;
+  }
+  .cogaccess-badge-alysia {
+    padding: 4px 10px; border-radius: 12px;
+    background: #f3eef9; border: 1.5px solid #7b5ea7;
+    font-size: 10px; color: #7b5ea7; font-weight: 700;
+  }
+  .avatar { width: 24px; height: 24px; border-radius: 50%; background: #ddd; }
+
+  /* Feed post */
+  .feed-post { padding: 12px; margin-bottom: 10px; background: #fff; }
+  .post-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .post-avatar { width: 14px; height: 14px; border-radius: 50%; background: #ddd; }
+  .post-actions { display: flex; gap: 14px; margin-top: 10px; font-size: 10px; color: #aaa; }
+
+  /* Sidebar */
+  .sidebar { width: 200px; flex-shrink: 0; }
+  .sidebar-inner { padding: 12px; }
+  .sidebar-text { font-size: 10px; color: #aaa; text-align: center; font-style: italic; }
+  .sidebar-hatch {
+    margin-top: 8px; height: 60px; border-radius: 4px;
+    background: repeating-linear-gradient(45deg, transparent, transparent 6px, #eee 6px, #eee 8px);
+  }
+
+  /* Dave screen-specific */
+  .dimmed { opacity: 0.3; padding: 16px; }
+  .dimmed-nopad { opacity: 0.35; }
+  .modal-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.25); z-index: 20;
+  }
+  .modal-box {
+    background: #fff; padding: 32px 36px; max-width: 380px;
+    text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    border: 2px solid #444; border-radius: 6px;
+  }
+  .modal-emoji { font-size: 28px; margin-bottom: 4px; }
+  .modal-title { font-size: 22px; font-weight: 700; color: #333; margin-bottom: 8px; }
+  .modal-desc { font-size: 12.5px; color: #666; margin: 0 0 18px; line-height: 1.5; }
+  .modal-input {
+    width: 100%; padding: 10px 12px; border: 1.5px solid #bbb;
+    border-radius: 6px; font-size: 12px; font-family: inherit;
+    margin-bottom: 14px; background: #faf9f7;
+  }
+  .modal-btns { display: flex; gap: 10px; }
+  .btn-skip { flex: 1; padding: 9px 0; border: 1.5px solid #bbb; border-radius: 6px; background: #fff; font-size: 12px; cursor: pointer; color: #666; font-family: inherit; }
+  .btn-set { flex: 1; padding: 9px 0; border: none; border-radius: 6px; background: #444; color: #fff; font-size: 12px; cursor: pointer; font-weight: 600; font-family: inherit; }
+  .modal-timer { font-size: 10px; color: #aaa; margin-top: 12px; }
+
+  /* Summary panel */
+  .summary-panel {
+    background: #fff8e6; border: 2px solid #e8b83d;
+    border-radius: 0 0 6px 6px; padding: 14px; margin-bottom: 16px;
+  }
+  .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .summary-label { font-weight: 700; font-size: 12.5px; color: #8a6b14; }
+  .summary-collapse { font-size: 10px; color: #aaa; border: 1px solid #ddd; border-radius: 4px; padding: 2px 8px; }
+  .summary-body { font-size: 12px; color: #555; line-height: 1.6; }
+  .summary-arg { background: #fff3cc; border-radius: 4px; padding: 6px 10px; margin-bottom: 4px; font-size: 11.5px; color: #666; }
+  .summary-footer { font-size: 10px; color: #b39530; margin-top: 8px; }
+
+  /* Comment */
+  .comment { padding: 10px; margin-bottom: 8px; background: #fff; }
+  .comment-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .comment-avatar { width: 14px; height: 14px; border-radius: 50%; background: #ddd; }
+  .comment-expand { font-size: 10px; color: #2d7fc1; margin-top: 6px; cursor: pointer; }
+
+  /* Time alert */
+  .time-banner {
+    position: absolute; top: 56px; left: 0; right: 0;
+    background: linear-gradient(135deg, #ff6b4a, #e85d26);
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 20; box-shadow: 0 4px 16px rgba(232,93,38,0.3);
+  }
+  .time-banner-title { color: #fff; font-weight: 700; font-size: 14px; }
+  .time-banner-sub { color: rgba(255,255,255,0.8); font-size: 11px; margin-top: 2px; }
+  .time-banner-btns { display: flex; gap: 8px; }
+  .btn-extend { padding: 7px 16px; border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.5); background: transparent; color: #fff; font-size: 11px; cursor: pointer; font-family: inherit; }
+  .btn-pause { padding: 7px 16px; border-radius: 6px; border: none; background: #fff; color: #e85d26; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+  /* Pause overlay */
+  .pause-overlay {
+    position: absolute; inset: 0; top: 110px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.15); z-index: 15;
+  }
+  .pause-box { background: #fff; padding: 28px 32px; text-align: center; border: 2px solid #444; max-width: 320px; border-radius: 6px; }
+  .pause-emoji { font-size: 32px; margin-bottom: 8px; }
+  .pause-title { font-size: 20px; font-weight: 700; color: #333; }
+  .pause-desc { font-size: 12px; color: #888; margin: 8px 0 16px; line-height: 1.5; }
+  .pause-timer { font-size: 28px; font-weight: 700; color: #e85d26; font-family: 'Courier New', monospace; }
+  .btn-resume { margin-top: 16px; padding: 8px 20px; border: 1.5px solid #bbb; border-radius: 6px; background: #fff; font-size: 12px; cursor: pointer; color: #666; font-family: inherit; }
+
+  /* Dashboard */
+  .dash-title { font-size: 22px; font-weight: 700; color: #333; margin-bottom: 4px; }
+  .dash-sub { font-size: 11.5px; color: #888; margin: 0 0 16px; }
+  .stats-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .stat-card { flex: 1; padding: 12px 14px; background: #fff; text-align: center; }
+  .stat-label { font-size: 10px; color: #999; margin-bottom: 4px; }
+  .stat-value { font-size: 20px; font-weight: 700; color: #333; }
+  .stat-sub { font-size: 10px; color: #aaa; margin-top: 2px; }
+  .charts-row { display: flex; gap: 16px; }
+  .chart-box { flex: 1; padding: 14px; background: #fff; }
+  .chart-title { font-size: 12px; font-weight: 700; color: #555; margin-bottom: 12px; }
+  .bar-row { display: flex; align-items: flex-end; gap: 8px; height: 100px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .bar-val { font-size: 9px; color: #888; margin-bottom: 4px; }
+  .bar-day { font-size: 9px; color: #999; margin-top: 4px; }
+  .sub-row { margin-bottom: 10px; }
+  .sub-header { display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-bottom: 3px; }
+  .sub-track { height: 8px; background: #eee; border-radius: 4px; }
+  .sub-fill { height: 100%; border-radius: 4px; }
+
+  /* Alysia-specific */
+  .compare-wrapper { display: flex; gap: 20px; padding: 16px; }
+  .compare-col { flex: 1; }
+  .compare-label { text-align: center; font-size: 12px; font-weight: 700; padding: 8px; border-radius: 6px 6px 0 0; margin-bottom: 0; }
+  .compare-content { border: 1.5px solid #bbb; border-top: none; border-radius: 0 0 6px 6px; padding: 14px; background: #fff; min-height: 340px; }
+  .text-line { height: 9px; border-radius: 3px; margin-bottom: 5px; background: #d5d3cf; }
+  .text-line-enhanced { height: 11px; border-radius: 3px; margin-bottom: 8px; background: #c5c3bf; font-family: 'OpenDyslexic', sans-serif; }
+  .bullet-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; font-size: 12px; color: #555; line-height: 1.5; }
+  .bullet-dot { width: 6px; height: 6px; border-radius: 50%; background: #7b5ea7; margin-top: 5px; flex-shrink: 0; }
+  .highlight-sentence { background: #fef3cd; padding: 2px 4px; border-radius: 3px; border-left: 3px solid #e8b83d; }
+
+  .tts-panel { background: #eef6ee; border: 2px solid #5bae5b; border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
+  .tts-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .tts-label { font-weight: 700; font-size: 12px; color: #3d7a3d; }
+  .tts-controls { display: flex; gap: 6px; align-items: center; }
+  .tts-btn { width: 30px; height: 30px; border-radius: 50%; border: none; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .tts-play { background: #5bae5b; color: #fff; }
+  .tts-secondary { background: #ddd; color: #666; }
+  .tts-progress { height: 6px; background: #ddd; border-radius: 3px; margin-bottom: 8px; }
+  .tts-progress-fill { height: 100%; width: 35%; background: #5bae5b; border-radius: 3px; }
+  .tts-options { display: flex; gap: 12px; font-size: 10px; color: #888; }
+  .tts-option { padding: 3px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+
+  .reading-toolbar { background: #f3eef9; border: 2px solid #7b5ea7; border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
+  .toolbar-label { font-weight: 700; font-size: 12px; color: #5a3d82; margin-bottom: 10px; }
+  .toolbar-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .toolbar-item { padding: 6px 12px; border: 1.5px solid #bbb; border-radius: 6px; background: #fff; font-size: 11px; color: #555; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+  .toolbar-item.active { border-color: #7b5ea7; background: #ece4f6; color: #5a3d82; font-weight: 600; }
+  .toggle-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .toggle-on { background: #5bae5b; }
+  .toggle-off { background: #ccc; }
+
+  .summary-card { background: #fff8e6; border: 2px solid #e8b83d; border-radius: 6px; padding: 14px; margin-bottom: 14px; }
+  .summary-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .summary-card-label { font-weight: 700; font-size: 12.5px; color: #8a6b14; }
+
+  .comment-card { border: 1.5px solid #bbb; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+  .comment-tts-btn { margin-left: auto; padding: 3px 8px; border-radius: 4px; background: #eef6ee; border: 1px solid #5bae5b; font-size: 9px; color: #3d7a3d; cursor: pointer; }
+
+  .minimal-mode { background: #fffef8; border: 2px solid #d5d3cf; border-radius: 6px; padding: 20px 24px; }
+  .minimal-title { font-size: 16px; font-weight: 700; color: #333; margin-bottom: 14px; line-height: 1.4; letter-spacing: 0.3px; }
+  .minimal-paragraph { font-size: 13px; color: #444; line-height: 2; letter-spacing: 0.5px; margin-bottom: 16px; font-family: 'OpenDyslexic', sans-serif; }
+  .minimal-divider { height: 1px; background: #e5e3df; margin: 16px 0; }
+
+  .font-demo { padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; }
+  .font-demo-default { background: #f4f3f0; font-size: 12px; color: #555; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+  .font-demo-accessible { background: #ece4f6; font-size: 14px; color: #333; line-height: 2; letter-spacing: 0.8px; word-spacing: 3px; font-family: 'OpenDyslexic', sans-serif; }
+
+  .flex-layout { display: flex; gap: 16px; padding: 16px; }
+  .flex-layout-mt { display: flex; gap: 16px; margin-top: 16px; }
+  .flex-1 { flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div>
+    <span class="topbar-title">Mid Fidelity Prototypes</span>
+    <span class="topbar-sub">Cognitively Accessible Reddit · Team 10</span>
+  </div>
+</div>
+
+<!-- Persona toggle -->
+<div class="persona-bar">
+  <button class="persona-btn active-dave" id="persona-dave-btn" onclick="switchPersona('dave')">Dave (ADHD)</button>
+  <button class="persona-btn" id="persona-alysia-btn" onclick="switchPersona('alysia')">Alysia (Dyslexia)</button>
+</div>
+
+<!-- Tab bars (one per persona, toggled) -->
+<div class="tabbar" id="tabbar-dave">
+  <button class="active-dave" onclick="showScreen('dave',0)">1. Opening Reddit</button>
+  <button onclick="showScreen('dave',1)">2. Thread + AI Summary</button>
+  <button onclick="showScreen('dave',2)">3. Time Alert</button>
+  <button onclick="showScreen('dave',3)">4. Usage Dashboard</button>
+  <button onclick="showScreen('dave',4)">5. Reduced Stimulation</button>
+</div>
+
+<div class="tabbar" id="tabbar-alysia" style="display:none">
+  <button class="active-alysia" onclick="showScreen('alysia',0)">1. Default vs Enhanced</button>
+  <button onclick="showScreen('alysia',1)">2. Post + TTS + Summary</button>
+  <button onclick="showScreen('alysia',2)">3. Reading Toolbar</button>
+  <button onclick="showScreen('alysia',3)">4. Minimal Reading Mode</button>
+</div>
+
+<!-- ============================================================ -->
+<!-- DAVE SCREENS                                                  -->
+<!-- ============================================================ -->
+<div id="dave-section">
+<div class="screen-container">
+
+  <!-- DAVE 1: Intent Prompt -->
+  <div class="screen active" id="dave-0">
+    <div class="dimmed">
+      <div class="reddit-nav">
+        <div style="display:flex;align-items:center;gap:6px"><div class="reddit-logo"></div><span class="reddit-name">reddit</span></div>
+        <div class="reddit-search">🔍 Search Reddit</div>
+        <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+          <div class="cogaccess-badge-dave">🧩 CogAccess ON</div>
+          <div class="avatar"></div>
+        </div>
+      </div>
+      <div class="flex-layout-mt">
+        <div class="flex-1">
+          <div class="wirebox feed-post"><div class="post-meta"><div class="post-avatar"></div><div class="placeholder" style="height:8px;width:80px"></div><div class="placeholder" style="height:8px;width:40px"></div></div><div class="placeholder placeholder-dark" style="height:12px;width:85%"></div><div style="height:6px"></div><div class="placeholder" style="height:8px;width:92%"></div><div style="height:3px"></div><div class="placeholder" style="height:8px;width:75%"></div><div class="post-actions"><span>▲ 124</span><span>💬 47</span><span>↗</span></div></div>
+          <div class="wirebox feed-post"><div class="post-meta"><div class="post-avatar"></div><div class="placeholder" style="height:8px;width:80px"></div><div class="placeholder" style="height:8px;width:40px"></div></div><div class="placeholder placeholder-dark" style="height:12px;width:85%"></div><div style="height:6px"></div><div class="placeholder" style="height:8px;width:92%"></div><div style="height:3px"></div><div class="placeholder" style="height:8px;width:75%"></div><div class="post-actions"><span>▲ 124</span><span>💬 47</span><span>↗</span></div></div>
+          <div class="wirebox feed-post"><div class="post-meta"><div class="post-avatar"></div><div class="placeholder" style="height:8px;width:80px"></div><div class="placeholder" style="height:8px;width:40px"></div></div><div class="placeholder placeholder-dark" style="height:12px;width:85%"></div><div style="height:6px"></div><div class="placeholder" style="height:8px;width:92%"></div><div style="height:3px"></div><div class="placeholder" style="height:8px;width:75%"></div><div class="post-actions"><span>▲ 124</span><span>💬 47</span><span>↗</span></div></div>
+        </div>
+        <div class="sidebar"><div class="wirebox-dashed sidebar-inner"><div class="sidebar-text">Sidebar hidden in<br>Reduced Stimulation Mode</div><div class="sidebar-hatch"></div></div></div>
+      </div>
+    </div>
+    <div class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-emoji">🧠</div>
+        <div class="modal-title">Why am I here?</div>
+        <p class="modal-desc">Take a moment to set an intention before browsing.</p>
+        <input class="modal-input" type="text" placeholder="e.g. Check r/webdev for React tips">
+        <div class="modal-btns">
+          <button class="btn-skip">Skip</button>
+          <button class="btn-set">Set Intention →</button>
+        </div>
+        <div class="modal-timer">⏱ Timer: 5 min break</div>
+      </div>
+    </div>
+    <div class="annotation" style="top:80px;right:20px;background:#e85d26">Attention anchor prompt
+on every session open</div>
+    <div class="annotation" style="bottom:60px;right:20px;background:#2d7fc1">Optional timer sets
+auto-pause countdown</div>
+  </div>
+
+  <!-- DAVE 2: Thread + AI Summary -->
+  <div class="screen" id="dave-1">
+    <div class="reddit-nav">
+      <div style="display:flex;align-items:center;gap:6px"><div class="reddit-logo"></div><span class="reddit-name">reddit</span></div>
+      <div class="reddit-search">🔍 Search Reddit</div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div class="cogaccess-badge-dave">🧩 CogAccess ON</div>
+        <div class="avatar"></div>
+      </div>
+    </div>
+    <div class="flex-layout">
+      <div class="flex-1">
+        <div class="wirebox" style="padding:14px;margin-bottom:0;border-radius:6px 6px 0 0">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <div style="width:18px;height:18px;border-radius:50%;background:#ccc"></div>
+            <div class="placeholder" style="height:10px;width:90px"></div>
+            <div class="placeholder" style="height:10px;width:50px"></div>
+          </div>
+          <div style="font-weight:700;font-size:14px;color:#333;margin-bottom:6px">What's the best new CLI tool released this year?</div>
+          <div class="placeholder" style="height:10px;width:95%"></div><div style="height:4px"></div>
+          <div class="placeholder" style="height:10px;width:80%"></div><div style="height:4px"></div>
+          <div class="placeholder" style="height:10px;width:70%"></div>
+          <div style="display:flex;gap:16px;margin-top:12px;font-size:11px;color:#888">
+            <span>▲ 847</span><span>💬 312 comments</span><span>↗ Share</span>
+          </div>
+        </div>
+        <div class="summary-panel">
+          <div class="summary-header">
+            <span class="summary-label">✨ AI Thread Summary</span>
+            <span class="summary-collapse">Collapse ▴</span>
+          </div>
+          <div class="summary-body">
+            <div style="margin-bottom:8px"><strong>Main discussion:</strong> <span style="color:#777">[AI-generated summary of 312 comments — e.g. "Users recommend Tool X for speed, Tool Y for extensibility. Debate around license concerns."]</span></div>
+            <div style="margin-bottom:6px;font-weight:600;font-size:11px;color:#8a6b14">Key Arguments:</div>
+            <div style="padding-left:12px">
+              <div class="summary-arg">🔹 <em>[Argument 1 placeholder — e.g. "Tool X has better CI/CD integration"]</em> <span style="color:#aaa">— 48 upvotes</span></div>
+              <div class="summary-arg">🔹 <em>[Argument 2 placeholder — e.g. "Tool Y is more beginner-friendly"]</em> <span style="color:#aaa">— 35 upvotes</span></div>
+            </div>
+          </div>
+          <div class="summary-footer">📖 Est. read time for full thread: ~18 min</div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:#888;margin-bottom:8px">Comments (simplified view — nested replies collapsed)</div>
+        <div class="wirebox comment"><div class="comment-meta"><div class="comment-avatar"></div><div class="placeholder" style="height:8px;width:70px"></div><span style="font-size:10px;color:#bbb">▲ 32</span></div><div class="placeholder" style="height:8px;width:90%"></div><div style="height:3px"></div><div class="placeholder" style="height:8px;width:70%"></div><div class="comment-expand">▸ 4 nested replies (click to expand)</div></div>
+        <div class="wirebox comment"><div class="comment-meta"><div class="comment-avatar"></div><div class="placeholder" style="height:8px;width:70px"></div><span style="font-size:10px;color:#bbb">▲ 24</span></div><div class="placeholder" style="height:8px;width:90%"></div><div style="height:3px"></div><div class="placeholder" style="height:8px;width:70%"></div><div class="comment-expand">▸ 3 nested replies (click to expand)</div></div>
+      </div>
+      <div class="sidebar"><div class="wirebox-dashed sidebar-inner"><div class="sidebar-text">Sidebar hidden in<br>Reduced Stimulation Mode</div><div class="sidebar-hatch"></div></div></div>
+    </div>
+    <div class="annotation" style="top:200px;right:10px;background:#e8b83d">AI summary panel
+appears below post,
+above comments</div>
+    <div class="annotation" style="bottom:30px;left:20px;background:#2d7fc1">Nested replies collapsed
+by default to reduce
+rabbit-holing</div>
+  </div>
+
+  <!-- DAVE 3: Time Alert -->
+  <div class="screen" id="dave-2">
+    <div class="dimmed-nopad">
+      <div class="reddit-nav">
+        <div style="display:flex;align-items:center;gap:6px"><div class="reddit-logo"></div><span class="reddit-name">reddit</span></div>
+        <div class="reddit-search">🔍 Search Reddit</div>
+        <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+          <div class="cogaccess-badge-dave">🧩 CogAccess ON</div>
+          <div class="avatar"></div>
+        </div>
+      </div>
+      <div class="flex-layout">
+        <div class="flex-1">
+          <div class="wirebox feed-post"><div class="post-meta"><div class="post-avatar"></div><div class="placeholder" style="height:8px;width:80px"></div><div class="placeholder" style="height:8px;width:40px"></div></div><div class="placeholder placeholder-dark" style="height:12px;width:85%"></div><div style="height:6px"></div><div class="placeholder" style="height:8px;width:92%"></div><div style="height:3px"></div><div class="placeholder" style="height:8px;width:75%"></div><div class="post-actions"><span>▲ 124</span><span>💬 47</span><span>↗</span></div></div>
+          <div class="wirebox feed-post"><div class="post-meta"><div class="post-avatar"></div><div class="placeholder" style="height:8px;width:80px"></div><div class="placeholder" style="height:8px;width:40px"></div></div><div class="placeholder placeholder-dark" style="height:12px;width:85%"></div><div style="height:6px"></div><div class="placeholder" style="height:8px;width:92%"></div><div style="height:3px"></div><div class="placeholder" style="height:8px;width:75%"></div><div class="post-actions"><span>▲ 124</span><span>💬 47</span><span>↗</span></div></div>
+          <div class="wirebox feed-post"><div class="post-meta"><div class="post-avatar"></div><div class="placeholder" style="height:8px;width:80px"></div><div class="placeholder" style="height:8px;width:40px"></div></div><div class="placeholder placeholder-dark" style="height:12px;width:85%"></div><div style="height:6px"></div><div class="placeholder" style="height:8px;width:92%"></div><div style="height:3px"></div><div class="placeholder" style="height:8px;width:75%"></div><div class="post-actions"><span>▲ 124</span><span>💬 47</span><span>↗</span></div></div>
+          <div class="wirebox feed-post"><div class="post-meta"><div class="post-avatar"></div><div class="placeholder" style="height:8px;width:80px"></div><div class="placeholder" style="height:8px;width:40px"></div></div><div class="placeholder placeholder-dark" style="height:12px;width:85%"></div><div style="height:6px"></div><div class="placeholder" style="height:8px;width:92%"></div><div style="height:3px"></div><div class="placeholder" style="height:8px;width:75%"></div><div class="post-actions"><span>▲ 124</span><span>💬 47</span><span>↗</span></div></div>
+        </div>
+        <div class="sidebar"><div class="wirebox-dashed sidebar-inner"><div class="sidebar-text">Sidebar hidden in<br>Reduced Stimulation Mode</div><div class="sidebar-hatch"></div></div></div>
+      </div>
+    </div>
+    <div class="time-banner"><div><div class="time-banner-title">⏰ You've been scrolling for 15 minutes</div><div class="time-banner-sub">Your intention was: "Check r/webdev for React tips" · 3 subreddits visited</div></div><div class="time-banner-btns"><button class="btn-extend">+5 min</button><button class="btn-pause">Pause Feed</button></div></div>
+    <div class="pause-overlay"><div class="pause-box"><div class="pause-emoji">⏸️</div><div class="pause-title">Feed Paused</div><p class="pause-desc">Take a breather. Feed resumes in:</p><div class="pause-timer">59:42</div><button class="btn-resume">Resume Early</button></div></div>
+    <div class="annotation" style="top:110px;left:20px;background:#e85d26">Shows original intention
+to encourage reflection</div>
+    <div class="annotation" style="bottom:80px;right:20px;background:#2d7fc1">Auto-pause blocks
+feed for cooldown
+period (configurable)</div>
+  </div>
+
+  <!-- DAVE 4: Usage Dashboard -->
+  <div class="screen" id="dave-3">
+    <div class="reddit-nav">
+      <div style="display:flex;align-items:center;gap:6px"><div class="reddit-logo"></div><span class="reddit-name">reddit</span></div>
+      <div class="reddit-search">🔍 Search Reddit</div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div class="cogaccess-badge-dave">🧩 CogAccess ON</div>
+        <div class="avatar"></div>
+      </div>
+    </div>
+    <div style="padding:16px 20px;position:relative">
+      <div class="dash-title">📊 Your Cognitive Load Dashboard</div>
+      <p class="dash-sub">Understand your browsing patterns to stay intentional.</p>
+      <div class="stats-row">
+        <div class="wirebox stat-card"><div class="stat-label">Today</div><div class="stat-value">42 min</div><div class="stat-sub" style="color:#5bae5b">↓ 18% vs avg</div></div>
+        <div class="wirebox stat-card"><div class="stat-label">Posts Viewed</div><div class="stat-value">23</div><div class="stat-sub">8 threads entered</div></div>
+        <div class="wirebox stat-card"><div class="stat-label">Avg. Session</div><div class="stat-value">14 min</div><div class="stat-sub" style="color:#e85d26">Goal: 10 min</div></div>
+        <div class="wirebox stat-card"><div class="stat-label">Focus Score</div><div class="stat-value">72%</div><div class="stat-sub">Stayed on-topic</div></div>
+      </div>
+      <div class="charts-row">
+        <div class="wirebox chart-box"><div class="chart-title">Weekly Screen Time</div><div class="bar-row"><div class="bar-col"><div class="bar-val">35m</div><div style="width:100%;height:35px;background:#d5d3cf;border-radius:3px 3px 0 0"></div><div class="bar-day">Mon</div></div><div class="bar-col"><div class="bar-val">52m</div><div style="width:100%;height:52px;background:#d5d3cf;border-radius:3px 3px 0 0"></div><div class="bar-day">Tue</div></div><div class="bar-col"><div class="bar-val">28m</div><div style="width:100%;height:28px;background:#5bae5b;border-radius:3px 3px 0 0"></div><div class="bar-day">Wed</div></div><div class="bar-col"><div class="bar-val">65m</div><div style="width:100%;height:65px;background:#d5d3cf;border-radius:3px 3px 0 0"></div><div class="bar-day">Thu</div></div><div class="bar-col"><div class="bar-val">40m</div><div style="width:100%;height:40px;background:#d5d3cf;border-radius:3px 3px 0 0"></div><div class="bar-day">Fri</div></div><div class="bar-col"><div class="bar-val">80m</div><div style="width:100%;height:80px;background:#e85d26;border-radius:3px 3px 0 0"></div><div class="bar-day">Sat</div></div><div class="bar-col"><div class="bar-val">48m</div><div style="width:100%;height:48px;background:#d5d3cf;border-radius:3px 3px 0 0"></div><div class="bar-day">Sun</div></div></div></div>
+        <div class="wirebox chart-box"><div class="chart-title">Time by Subreddit (today)</div><div class="sub-row"><div class="sub-header"><span>r/webdev</span><span>65%</span></div><div class="sub-track"><div class="sub-fill" style="width:65%;background:#e85d26"></div></div></div><div class="sub-row"><div class="sub-header"><span>r/programming</span><span>45%</span></div><div class="sub-track"><div class="sub-fill" style="width:45%;background:#2d7fc1"></div></div></div><div class="sub-row"><div class="sub-header"><span>r/ADHD</span><span>30%</span></div><div class="sub-track"><div class="sub-fill" style="width:30%;background:#5bae5b"></div></div></div><div class="sub-row"><div class="sub-header"><span>r/gaming</span><span>20%</span></div><div class="sub-track"><div class="sub-fill" style="width:20%;background:#b080d0"></div></div></div></div>
+      </div>
+      <div class="annotation" style="top:130px;right:10px;background:#5bae5b">Focus score tracks if
+browsing matched intention</div>
+      <div class="annotation" style="bottom:60px;left:20px;background:#e85d26">Highlights outlier days
+in orange for awareness</div>
+    </div>
+  </div>
+
+  <!-- DAVE 5: Reduced Stimulation Mode -->
+  <div class="screen" id="dave-4">
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1.5px solid #e0deda;background:#f5f4f2;">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:22px;height:22px;border-radius:50%;background:#c9a28a;"></div>
+        <span style="font-weight:700;font-size:14px;color:#888;">reddit</span>
+      </div>
+      <div style="flex:1;max-width:340px;height:30px;background:#eeecea;border-radius:16px;border:1px solid #ddd;display:flex;align-items:center;padding-left:12px;font-size:11px;color:#bbb;">🔍 Search Reddit</div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
+        <span style="padding:4px 10px;border-radius:12px;background:#eef3ff;border:1.5px solid #8899bb;font-size:10px;color:#8899bb;font-weight:700;">🧩 CogAccess ON</span>
+        <span style="padding:3px 10px;border-radius:10px;background:#e8e0d8;font-size:10px;color:#998877;font-weight:600;">😌 Reduced Stimulation</span>
+        <div style="width:24px;height:24px;border-radius:50%;background:#ddd;"></div>
+      </div>
+    </div>
+    <div style="padding:16px 20px;position:relative;background:#f0efec;min-height:460px;">
+      <div style="border:1.5px solid #ddd;border-radius:6px;background:#fff;padding:14px 16px;margin-bottom:12px;"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;"><div style="width:14px;height:14px;border-radius:50%;background:#ddd;"></div><span style="font-size:11px;color:#aaa;">r/webdev</span><span style="font-size:10px;color:#ccc;">· 3 hours ago</span></div><div style="font-weight:700;font-size:14px;color:#555;margin-bottom:6px;">What's the best new CLI tool released this year?</div><div style="font-size:11.5px;color:#999;line-height:1.5;">312 comments · AI summary available</div></div>
+      <div style="border:1.5px solid #ddd;border-radius:6px;background:#fff;padding:14px 16px;margin-bottom:12px;"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;"><div style="width:14px;height:14px;border-radius:50%;background:#ddd;"></div><span style="font-size:11px;color:#aaa;">r/programming</span><span style="font-size:10px;color:#ccc;">· 5 hours ago</span></div><div style="font-weight:700;font-size:14px;color:#555;margin-bottom:6px;">How do you handle burnout as a dev?</div><div style="font-size:11.5px;color:#999;line-height:1.5;">189 comments · AI summary available</div></div>
+      <div style="border:1.5px solid #ddd;border-radius:6px;background:#fff;padding:14px 16px;margin-bottom:12px;"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;"><div style="width:14px;height:14px;border-radius:50%;background:#ddd;"></div><span style="font-size:11px;color:#aaa;">r/ADHD</span><span style="font-size:10px;color:#ccc;">· 6 hours ago</span></div><div style="font-weight:700;font-size:14px;color:#555;margin-bottom:6px;">Anyone else lose entire weekends to Reddit?</div><div style="font-size:11.5px;color:#999;line-height:1.5;">97 comments · AI summary available</div></div>
+      <div style="border:1.5px solid #ddd;border-radius:6px;background:#fff;padding:14px 16px;margin-bottom:12px;"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;"><div style="width:14px;height:14px;border-radius:50%;background:#ddd;"></div><span style="font-size:11px;color:#aaa;">r/cscareerquestions</span><span style="font-size:10px;color:#ccc;">· 8 hours ago</span></div><div style="font-weight:700;font-size:14px;color:#555;margin-bottom:6px;">Is a CS minor worth it alongside a non-tech major?</div><div style="font-size:11.5px;color:#999;line-height:1.5;">145 comments · AI summary available</div></div>
+      <div style="text-align:center;padding:14px 0;border:2px dashed #ddd;border-radius:6px;color:#bbb;font-size:11px;cursor:pointer;">Load 5 more posts ▾</div>
+      <div class="annotation" style="top:16px;right:10px;background:#2d7fc1;max-width:170px;">No karma scores,
+no upvote counts —
+removes impulsive
+engagement cues</div>
+      <div class="annotation" style="top:200px;right:10px;background:#e85d26;max-width:170px;">No sidebar, no trending
+panels — single column
+reduces visual noise</div>
+      <div class="annotation" style="bottom:70px;right:10px;background:#5bae5b;max-width:170px;">Muted colors and
+low saturation across
+the entire interface</div>
+      <div class="annotation" style="bottom:30px;left:20px;background:#2d7fc1;max-width:180px;">Infinite scroll replaced
+with manual "load more"
+to prevent mindless scrolling</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ALYSIA SCREENS                                                -->
+<!-- ============================================================ -->
+<div id="alysia-section" style="display:none">
+<div class="screen-container alysia-font">
+
+  <!-- ALYSIA 1: Side-by-Side Comparison -->
+  <div class="screen active" id="alysia-0">
+    <div class="reddit-nav">
+      <div style="display:flex;align-items:center;gap:6px"><div class="reddit-logo"></div><span class="reddit-name">reddit</span></div>
+      <div class="reddit-search">🔍 Search Reddit</div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div class="cogaccess-badge-alysia">🧩 CogAccess ON</div>
+        <div class="avatar"></div>
+      </div>
+    </div>
+    <div class="compare-wrapper" style="position:relative">
+      <div class="compare-col">
+        <div class="compare-label" style="background:#f4f3f0;color:#888;border:1.5px solid #bbb;border-bottom:none">❌ Default Reddit</div>
+        <div class="compare-content" style="border-color:#bbb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif">
+          <div style="font-weight:700;font-size:13px;color:#333;margin-bottom:10px">How I improved my study habits as a CS student</div>
+          <div style="margin-bottom:12px"><div class="text-line" style="width:100%"></div><div class="text-line" style="width:98%"></div><div class="text-line" style="width:100%"></div><div class="text-line" style="width:95%"></div><div class="text-line" style="width:100%"></div><div class="text-line" style="width:92%"></div><div class="text-line" style="width:100%"></div><div class="text-line" style="width:97%"></div><div class="text-line" style="width:100%"></div><div class="text-line" style="width:88%"></div><div class="text-line" style="width:100%"></div><div class="text-line" style="width:94%"></div><div class="text-line" style="width:100%"></div><div class="text-line" style="width:90%"></div><div class="text-line" style="width:100%"></div><div class="text-line" style="width:85%"></div></div>
+          <div style="font-size:10px;color:#aaa;margin-bottom:10px">— continues for 6 more paragraphs —</div>
+          <div style="font-size:10px;color:#ccc;font-style:italic">No TTS · No summary · Small font · Tight spacing</div>
+        </div>
+      </div>
+      <div class="compare-col">
+        <div class="compare-label" style="background:#ece4f6;color:#5a3d82;border:1.5px solid #7b5ea7;border-bottom:none">✅ With CogAccess</div>
+        <div class="compare-content" style="border-color:#7b5ea7">
+          <div style="font-weight:700;font-size:15px;color:#333;margin-bottom:6px;letter-spacing:0.3px;line-height:1.4">How I improved my study habits as a CS student</div>
+          <div style="font-size:10px;color:#888;margin-bottom:12px">📖 5 min read · 🔊 Listen available</div>
+          <div style="margin-bottom:12px"><div class="text-line-enhanced" style="width:100%"></div><div class="text-line-enhanced" style="width:95%"></div><div class="text-line-enhanced" style="width:90%"></div></div>
+          <div class="highlight-sentence" style="font-size:12px;color:#555;margin-bottom:12px;padding:6px 10px"><strong style="color:#8a6b14">Key point:</strong> <span style="color:#777">[e.g. "Pomodoro technique doubled my focus time"]</span></div>
+          <div style="margin-bottom:12px"><div class="text-line-enhanced" style="width:100%"></div><div class="text-line-enhanced" style="width:88%"></div><div class="text-line-enhanced" style="width:92%"></div></div>
+          <div class="highlight-sentence" style="font-size:12px;color:#555;margin-bottom:12px;padding:6px 10px"><strong style="color:#8a6b14">Key point:</strong> <span style="color:#777">[e.g. "Active recall > re-reading notes"]</span></div>
+          <div style="font-size:10px;color:#7b5ea7;font-style:italic">Wider spacing · Larger font · Key sentences highlighted · TTS ready</div>
+        </div>
+      </div>
+      <div class="annotation" style="top:80px;left:10px;background:#e85d26">Dense text walls cause
+cognitive fatigue for
+dyslexia users</div>
+      <div class="annotation" style="top:80px;right:10px;background:#7b5ea7">Enhanced readability:
+bigger text, more spacing,
+key points surfaced</div>
+    </div>
+  </div>
+
+  <!-- ALYSIA 2: Post + TTS + Summary -->
+  <div class="screen" id="alysia-1">
+    <div class="reddit-nav">
+      <div style="display:flex;align-items:center;gap:6px"><div class="reddit-logo"></div><span class="reddit-name">reddit</span></div>
+      <div class="reddit-search">🔍 Search Reddit</div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div class="cogaccess-badge-alysia">🧩 CogAccess ON</div>
+        <div class="avatar"></div>
+      </div>
+    </div>
+    <div class="flex-layout" style="position:relative">
+      <div class="flex-1">
+        <div class="wirebox" style="padding:14px;margin-bottom:0;border-radius:6px 6px 0 0">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><div style="width:18px;height:18px;border-radius:50%;background:#ccc"></div><div class="placeholder" style="height:10px;width:90px"></div><div class="placeholder" style="height:10px;width:50px"></div></div>
+          <div style="font-weight:700;font-size:15px;color:#333;margin-bottom:4px;letter-spacing:0.3px;line-height:1.4">Tips for balancing athletics and academics in college?</div>
+          <div style="font-size:10px;color:#888;margin-bottom:10px">📖 8 min read · r/college</div>
+          <div class="text-line-enhanced" style="width:96%"></div><div class="text-line-enhanced" style="width:90%"></div><div class="text-line-enhanced" style="width:94%"></div><div class="text-line-enhanced" style="width:85%"></div>
+          <div style="display:flex;gap:16px;margin-top:12px;font-size:11px;color:#888"><span>▲ 523</span><span>💬 189 comments</span><span>↗ Share</span></div>
+        </div>
+        <div class="tts-panel" style="border-radius:0;border-left:2px solid #5bae5b;border-right:2px solid #5bae5b">
+          <div class="tts-header"><span class="tts-label">🔊 Listen to this post</span><div class="tts-controls"><button class="tts-btn tts-secondary">⏮</button><button class="tts-btn tts-play">▶</button><button class="tts-btn tts-secondary">⏭</button></div></div>
+          <div class="tts-progress"><div class="tts-progress-fill"></div></div>
+          <div class="tts-options"><span class="tts-option">Speed: 1.0×</span><span class="tts-option">Voice: Natural</span><span class="tts-option">☑ Highlight text</span></div>
+        </div>
+        <div class="summary-card" style="border-radius:0 0 6px 6px">
+          <div class="summary-card-header"><span class="summary-card-label">✨ Post + Comments Summary</span><span style="font-size:10px;color:#aaa;border:1px solid #ddd;border-radius:4px;padding:2px 8px">Collapse ▴</span></div>
+          <div style="font-size:12px;color:#555;line-height:1.6">
+            <div style="margin-bottom:6px"><strong>Post summary:</strong> <span style="color:#777">[AI-generated — e.g. "OP asks how to manage a D1 sport schedule alongside a full course load"]</span></div>
+            <div style="margin-bottom:6px"><strong>Top advice from comments:</strong></div>
+            <div style="padding-left:12px">
+              <div class="bullet-item"><div class="bullet-dot"></div><span style="color:#777">[e.g. "Talk to professors early in the semester about travel schedules"]</span></div>
+              <div class="bullet-item"><div class="bullet-dot"></div><span style="color:#777">[e.g. "Use Sunday evenings to batch-plan the week"]</span></div>
+              <div class="bullet-item"><div class="bullet-dot"></div><span style="color:#777">[e.g. "Don't skip office hours — they save study time"]</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:#888;margin-bottom:8px">Comments</div>
+        <div class="comment-card"><div class="comment-meta"><div class="comment-avatar"></div><div class="placeholder" style="height:8px;width:70px"></div><span style="font-size:10px;color:#bbb">▲ 45</span><span class="comment-tts-btn">🔊 Listen</span></div><div class="text-line-enhanced" style="width:92%"></div><div class="text-line-enhanced" style="width:78%"></div></div>
+        <div class="comment-card"><div class="comment-meta"><div class="comment-avatar"></div><div class="placeholder" style="height:8px;width:70px"></div><span style="font-size:10px;color:#bbb">▲ 32</span><span class="comment-tts-btn">🔊 Listen</span></div><div class="text-line-enhanced" style="width:88%"></div><div class="text-line-enhanced" style="width:70%"></div></div>
+      </div>
+      <div class="sidebar"><div class="wirebox-dashed sidebar-inner"><div class="sidebar-text">Sidebar hidden in<br>Reduced Stimulation Mode</div><div class="sidebar-hatch"></div></div></div>
+      <div class="annotation" style="top:210px;right:10px;background:#5bae5b">TTS with adjustable speed,
+voice, and text highlighting
+as it reads aloud</div>
+      <div class="annotation" style="top:380px;right:10px;background:#e8b83d">AI summary of post +
+comments so Alysia can
+decide if it's worth reading</div>
+      <div class="annotation" style="bottom:30px;right:10px;background:#5bae5b">Per-comment listen button
+for quick audio playback</div>
+    </div>
+  </div>
+
+  <!-- ALYSIA 3: Reading Toolbar -->
+  <div class="screen" id="alysia-2">
+    <div class="reddit-nav">
+      <div style="display:flex;align-items:center;gap:6px"><div class="reddit-logo"></div><span class="reddit-name">reddit</span></div>
+      <div class="reddit-search">🔍 Search Reddit</div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div class="cogaccess-badge-alysia">🧩 CogAccess ON</div>
+        <div class="avatar"></div>
+      </div>
+    </div>
+    <div class="flex-layout" style="position:relative">
+      <div class="flex-1">
+        <div class="reading-toolbar" style="margin-bottom:18px">
+          <div class="toolbar-label">🎨 Reading Accessibility Toolbar</div>
+          <div class="toolbar-row" style="margin-bottom:10px">
+            <div class="toolbar-item active"><span class="toggle-dot toggle-on"></span> OpenDyslexic Font</div>
+            <div class="toolbar-item active"><span class="toggle-dot toggle-on"></span> Wide Spacing</div>
+            <div class="toolbar-item active"><span class="toggle-dot toggle-on"></span> Key Sentences</div>
+            <div class="toolbar-item"><span class="toggle-dot toggle-off"></span> Color Overlay</div>
+          </div>
+          <div class="toolbar-row">
+            <div class="toolbar-item active"><span class="toggle-dot toggle-on"></span> Wider Margins</div>
+            <div class="toolbar-item"><span class="toggle-dot toggle-off"></span> Bullet Breakdown</div>
+            <div class="toolbar-item active"><span class="toggle-dot toggle-on"></span> Simplified Tree</div>
+            <div class="toolbar-item"><span class="toggle-dot toggle-off"></span> High Contrast</div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:12px;align-items:center">
+            <span style="font-size:10px;color:#888">Font size:</span>
+            <div style="display:flex;gap:4px">
+              <span style="padding:3px 8px;border:1px solid #bbb;border-radius:4px;font-size:10px;background:#fff;cursor:pointer">A-</span>
+              <span style="padding:3px 8px;border:1.5px solid #7b5ea7;border-radius:4px;font-size:10px;background:#ece4f6;cursor:pointer;font-weight:600;color:#5a3d82">A</span>
+              <span style="padding:3px 8px;border:1px solid #bbb;border-radius:4px;font-size:10px;background:#fff;cursor:pointer">A+</span>
+            </div>
+            <span style="font-size:10px;color:#888;margin-left:16px">Line spacing:</span>
+            <div style="display:flex;gap:4px">
+              <span style="padding:3px 8px;border:1px solid #bbb;border-radius:4px;font-size:10px;background:#fff;cursor:pointer">1.0</span>
+              <span style="padding:3px 8px;border:1px solid #bbb;border-radius:4px;font-size:10px;background:#fff;cursor:pointer">1.5</span>
+              <span style="padding:3px 8px;border:1.5px solid #7b5ea7;border-radius:4px;font-size:10px;background:#ece4f6;cursor:pointer;font-weight:600;color:#5a3d82">2.0</span>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:#888;margin-bottom:8px">Live Preview — Font & Spacing</div>
+        <div style="margin-bottom:6px;font-size:10px;color:#aaa">Default rendering:</div>
+        <div class="font-demo font-demo-default">The key to studying effectively is understanding how your brain processes information. Most students rely on passive methods like re-reading, but research shows active recall and spaced repetition are far more effective for long-term retention.</div>
+        <div style="margin-bottom:6px;font-size:10px;color:#7b5ea7;font-weight:600">Enhanced rendering (OpenDyslexic font + wide spacing):</div>
+        <div class="font-demo font-demo-accessible">The key to studying effectively is understanding how your brain processes information. Most students rely on passive methods like re-reading, but research shows active recall and spaced repetition are far more effective for long-term retention.</div>
+      </div>
+      <div class="sidebar"><div class="wirebox-dashed sidebar-inner"><div class="sidebar-text">Sidebar hidden in<br>Reduced Stimulation Mode</div><div class="sidebar-hatch"></div></div></div>
+      <div class="annotation" style="top:20px;right:10px;background:#7b5ea7">Toggle panel for all
+reading accessibility
+features in one place</div>
+      <div class="annotation" style="bottom:80px;left:20px;background:#7b5ea7">Live preview shows
+difference between
+default and enhanced text</div>
+    </div>
+  </div>
+
+  <!-- ALYSIA 4: Minimal Reading Mode -->
+  <div class="screen" id="alysia-3">
+    <div class="reddit-nav">
+      <div style="display:flex;align-items:center;gap:6px"><div class="reddit-logo"></div><span class="reddit-name">reddit</span></div>
+      <div class="reddit-search">🔍 Search Reddit</div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div class="cogaccess-badge-alysia">🧩 CogAccess ON</div>
+        <div class="avatar"></div>
+      </div>
+    </div>
+    <div style="padding:16px 20px;position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;font-weight:700;color:#7b5ea7;background:#ece4f6;padding:4px 10px;border-radius:4px">📖 Minimal Reading Mode</span>
+          <span style="font-size:10px;color:#888">Distraction-free · Enhanced typography</span>
+        </div>
+        <span style="font-size:10px;color:#aaa;border:1px solid #ddd;border-radius:4px;padding:3px 10px;cursor:pointer">Exit Mode ✕</span>
+      </div>
+      <div style="max-width:620px;margin:0 auto">
+        <div class="minimal-mode">
+          <div class="minimal-title">Tips for balancing athletics and academics in college?</div>
+          <div style="display:flex;gap:12px;font-size:10px;color:#999;margin-bottom:16px"><span>r/college</span><span>· 523 upvotes</span><span>· 📖 8 min read</span><span style="color:#5bae5b;cursor:pointer">· 🔊 Listen</span></div>
+          <div class="minimal-paragraph"><span style="color:#777">[Post content rendered with enhanced typography — wider line height, generous letter-spacing, and comfortable reading width. Long paragraphs automatically broken into shorter sections.]</span></div>
+          <div class="highlight-sentence" style="font-size:13px;color:#555;padding:8px 12px;margin-bottom:16px;line-height:1.8"><strong style="color:#8a6b14">Key point:</strong> <span style="color:#777">[e.g. "Plan your week around practice schedules, not the other way around"]</span></div>
+          <div class="minimal-paragraph"><span style="color:#777">[Second section of post content — automatically segmented with visual breaks between ideas for easier cognitive processing.]</span></div>
+          <div class="minimal-divider"></div>
+          <div style="font-size:12px;font-weight:600;color:#888;margin-bottom:10px">Top Comments (simplified)</div>
+          <div style="padding:10px 12px;background:#f9f9f6;border-radius:6px;margin-bottom:8px;border-left:3px solid #7b5ea7"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="placeholder" style="height:8px;width:70px"></div><span style="font-size:9px;color:#5bae5b;cursor:pointer">🔊 Listen</span></div><div style="font-size:12px;color:#777;line-height:1.8;letter-spacing:0.3px">[Comment text with enhanced readability — e.g. "I'm a D2 soccer player and I swear by time-blocking my Sundays..."]</div></div>
+          <div style="padding:10px 12px;background:#f9f9f6;border-radius:6px;margin-bottom:8px;border-left:3px solid #7b5ea7"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div class="placeholder" style="height:8px;width:70px"></div><span style="font-size:9px;color:#5bae5b;cursor:pointer">🔊 Listen</span></div><div style="font-size:12px;color:#777;line-height:1.8;letter-spacing:0.3px">[Comment text — e.g. "Your academic advisor should know your season schedule — make that meeting happen week 1"]</div></div>
+          <div style="text-align:center;font-size:10px;color:#aaa;margin-top:12px;cursor:pointer">Show 187 more comments ▾</div>
+        </div>
+      </div>
+      <div class="annotation" style="top:20px;right:10px;background:#7b5ea7">Strips away all sidebar,
+trending, and visual clutter
+for focused reading</div>
+      <div class="annotation" style="top:240px;right:10px;background:#e8b83d">Key points auto-extracted
+so Alysia can skim before
+committing to full read</div>
+      <div class="annotation" style="bottom:60px;left:20px;background:#5bae5b">Every piece of content
+has a listen button for
+quick TTS playback</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <span><span class="legend-dot" style="background:#e85d26"></span>Time/Attention</span>
+  <span><span class="legend-dot" style="background:#2d7fc1"></span>Focus/Structure</span>
+  <span><span class="legend-dot" style="background:#7b5ea7"></span>Readability</span>
+  <span><span class="legend-dot" style="background:#5bae5b"></span>Text-to-Speech</span>
+  <span><span class="legend-dot" style="background:#e8b83d"></span>AI-Powered</span>
+</div>
+
+<script>
+let currentPersona = 'dave';
+
+function switchPersona(persona) {
+  currentPersona = persona;
+
+  // Toggle sections
+  document.getElementById('dave-section').style.display = persona === 'dave' ? 'block' : 'none';
+  document.getElementById('alysia-section').style.display = persona === 'alysia' ? 'block' : 'none';
+  document.getElementById('tabbar-dave').style.display = persona === 'dave' ? 'flex' : 'none';
+  document.getElementById('tabbar-alysia').style.display = persona === 'alysia' ? 'flex' : 'none';
+
+  // Toggle persona buttons
+  const daveBtn = document.getElementById('persona-dave-btn');
+  const alysiaBtn = document.getElementById('persona-alysia-btn');
+  daveBtn.className = 'persona-btn' + (persona === 'dave' ? ' active-dave' : '');
+  alysiaBtn.className = 'persona-btn' + (persona === 'alysia' ? ' active-alysia' : '');
+
+  // Show first screen of selected persona
+  showScreen(persona, 0);
+}
+
+function showScreen(persona, index) {
+  const prefix = persona;
+  const tabbarId = 'tabbar-' + persona;
+  const activeClass = 'active-' + persona;
+
+  // Hide all screens for this persona
+  document.querySelectorAll('#' + persona + '-section .screen').forEach(s => s.classList.remove('active'));
+
+  // Deactivate all tabs
+  document.querySelectorAll('#' + tabbarId + ' button').forEach(b => {
+    b.className = '';
+  });
+
+  // Activate selected screen and tab
+  const screen = document.getElementById(prefix + '-' + index);
+  if (screen) screen.classList.add('active');
+
+  const tabs = document.querySelectorAll('#' + tabbarId + ' button');
+  if (tabs[index]) tabs[index].className = activeClass;
+}
+</script>
+
+</body>
+</html>

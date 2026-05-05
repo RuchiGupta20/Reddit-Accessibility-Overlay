@@ -7,14 +7,17 @@ const DEFAULT_SETTINGS = {
   fontScale: 1,
   lineHeight: 1.6,
   letterSpacing: 0,
-  wordSpacing: 0
+  wordSpacing: 0,
+  ttsRate: 1,
+  ttsVoice: "",
+  ttsHighlight: true
 };
 const FONT_STACKS = {
   default: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   dyslexia: '"OpenDyslexic", "Atkinson Hyperlegible", "Lexend", Verdana, Tahoma, Arial, sans-serif'
 };
-let currentSettings = { ...DEFAULT_SETTINGS };
-let overlayElements = null;
+var currentSettings = { ...DEFAULT_SETTINGS };
+var overlayElements = null;
 let persistTimer = null;
 let summaryState = {
   loading: false,
@@ -24,6 +27,10 @@ let summaryState = {
 
 function isRedditPage() {
   return window.location.hostname === "www.reddit.com";
+}
+
+function isThreadPage() {
+  return /\/r\/[^/]+\/comments\//.test(window.location.pathname);
 }
 
 function createRoot() {
@@ -75,6 +82,224 @@ function scheduleSave(nextSettings) {
     applySettings(savedSettings);
   }, 250);
 }
+
+/* TTS start */
+var speedSyncRegistry = [];
+
+function syncAllSpeedControls() {
+  speedSyncRegistry.forEach(fn => fn());
+}
+
+function buildSpeedControls(onRestart) {
+  const row = document.createElement("div");
+  row.className = "rao-speed-row";
+  row.innerHTML = [0.5, 1, 1.5, 2].map(r =>
+    `<button class="rao-speed-btn" data-rate="${r}" type="button">${r}×</button>`
+  ).join("");
+
+  const btns = row.querySelectorAll(".rao-speed-btn");
+  const sync = () => {
+    const rate = currentSettings.ttsRate ?? 1;
+    btns.forEach(b => b.classList.toggle("rao-speed-active", Number(b.dataset.rate) === rate));
+  };
+  speedSyncRegistry.push(sync);
+
+  btns.forEach(btn => btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const nextSettings = { ...currentSettings, ttsRate: Number(btn.dataset.rate) };
+    applySettings(nextSettings);
+    scheduleSave(nextSettings);
+    onRestart?.();
+  }));
+
+  sync();
+  return row;
+}
+
+function buildPostSegments(post) {
+  const segs = [];
+  const titleEl = post.querySelector("h1, [slot='title']");
+  const flairEl = post.querySelector("faceplate-pill, [slot='flair']");
+  const bodyEl  = post.querySelector("[slot='text-body'], .RichTextJSON-root");
+  if (titleEl) segs.push({ label: "Title", el: titleEl });
+  if (flairEl) {
+    const t = (flairEl.innerText || "").trim();
+    if (t) segs.push({ label: "Flair", el: null, staticText: t });
+  }
+  if (bodyEl) segs.push({ label: "Body", el: bodyEl });
+  return segs;
+}
+
+function createPostPlayer(post) {
+  const player = document.createElement("div");
+  player.className = "rao-post-player";
+  player.dataset.ttsState = "idle";
+
+  player.innerHTML = `
+    <div class="rao-player-row rao-player-header">
+      <span class="rao-player-title">🔊 Listen to this post</span>
+      <div class="rao-player-btns">
+        <button class="rao-ctrl rao-ctrl-back" type="button" title="Restart">⏮</button>
+        <button class="rao-ctrl rao-ctrl-play" type="button" aria-label="Play">▶</button>
+        <button class="rao-ctrl rao-ctrl-stop" type="button" title="Stop">⏹</button>
+      </div>
+    </div>
+    <div class="rao-player-progress-track">
+      <div class="rao-player-progress-fill"></div>
+    </div>
+  `;
+  player.appendChild(buildSpeedControls(() => { if (ttsSession?.player === player) play(); }));
+
+  const playBtn = player.querySelector(".rao-ctrl-play");
+  const backBtn = player.querySelector(".rao-ctrl-back");
+  const stopBtn = player.querySelector(".rao-ctrl-stop");
+
+  const play = () => startTTS(player, buildPostSegments(post), currentSettings.ttsHighlight ?? true);
+
+  playBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const state = player.dataset.ttsState;
+    if (state === "playing") {
+      window.speechSynthesis.pause();
+      setPlayerState(player, "paused");
+    } else if (state === "paused") {
+      window.speechSynthesis.resume();
+      setPlayerState(player, "playing");
+    } else {
+      play();
+    }
+  });
+
+  backBtn.addEventListener("click", (e) => { e.stopPropagation(); play(); });
+  stopBtn.addEventListener("click", (e) => { e.stopPropagation(); if (ttsSession?.player === player) stopTTS(); });
+
+  return player;
+}
+
+function createCommentPlayer(comment) {
+  // Shadow DOM isolates our mutations from Reddit's component observers, preventing flicker
+  const host = document.createElement("span");
+  host.className = "rao-comment-player-host";
+  host.style.cssText = "display:inline-flex;align-items:center;vertical-align:middle;margin-left:6px;";
+  const shadow = host.attachShadow({ mode: "open" });
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = chrome.runtime.getURL("src/content/content.css");
+  shadow.appendChild(link);
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "rao-comment-player";
+  wrapper.dataset.ttsState = "idle";
+
+  wrapper.innerHTML = `
+    <div class="rao-comment-player-row">
+      <button class="rao-ctrl rao-ctrl-back rao-comment-back" type="button" title="Restart" style="display:none">⏮</button>
+      <button class="rao-ctrl rao-ctrl-play rao-comment-play" type="button" aria-label="Play">▶</button>
+      <button class="rao-ctrl rao-comment-stop" type="button" title="Stop" style="display:none">⏹</button>
+      <span class="rao-comment-label">Listen</span>
+    </div>
+    <div class="rao-comment-progress-track" style="display:none">
+      <div class="rao-player-progress-fill"></div>
+    </div>
+  `;
+
+  const speedRow = buildSpeedControls(() => { if (ttsSession?.player === wrapper) play(); });
+  speedRow.style.display = "none";
+  wrapper.appendChild(speedRow);
+  shadow.appendChild(wrapper);
+
+  const backBtn = wrapper.querySelector(".rao-comment-back");
+  const playBtn = wrapper.querySelector(".rao-comment-play");
+  const stopBtn = wrapper.querySelector(".rao-comment-stop");
+  const label   = wrapper.querySelector(".rao-comment-label");
+  const track   = wrapper.querySelector(".rao-comment-progress-track");
+
+  const getSegs = () => {
+    const bodyEl = comment.querySelector("[slot='comment'], .md");
+    return [{ label: "", el: bodyEl ?? comment }];
+  };
+
+  const syncUI = (state) => {
+    const active = state === "playing" || state === "paused";
+    label.style.display    = active ? "none" : "";
+    backBtn.style.display  = active ? "" : "none";
+    stopBtn.style.display  = active ? "" : "none";
+    track.style.display    = active ? "" : "none";
+    speedRow.style.display = active ? "" : "none";
+  };
+
+  const play = () => startTTS(wrapper, getSegs(), currentSettings.ttsHighlight ?? true, syncUI);
+
+  backBtn.addEventListener("click", (e) => { e.stopPropagation(); play(); });
+
+  playBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const state = wrapper.dataset.ttsState;
+    if (state === "playing") {
+      window.speechSynthesis.pause();
+      setPlayerState(wrapper, "paused");
+      syncUI("paused");
+      return;
+    }
+    if (state === "paused") {
+      window.speechSynthesis.resume();
+      setPlayerState(wrapper, "playing");
+      syncUI("playing");
+      return;
+    }
+    play();
+  });
+
+  stopBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (ttsSession?.player === wrapper) stopTTS();
+  });
+
+  return host;
+}
+
+function injectTTSButtons() {
+  if (!isThreadPage()) return;
+
+  document.querySelectorAll("shreddit-post:not([data-rao-tts])").forEach(post => {
+    post.dataset.raoTts = "1";
+    const player = createPostPlayer(post);
+    const footer = post.querySelector("[slot='post-media-footer'], footer");
+    (footer ?? post).insertAdjacentElement("afterbegin", player);
+  });
+
+  document.querySelectorAll("shreddit-comment:not([data-rao-tts])").forEach(comment => {
+    comment.dataset.raoTts = "1";
+    const player = createCommentPlayer(comment);
+    const actionBar = comment.querySelector("[slot='comment-actions'], footer");
+    (actionBar ?? comment).appendChild(player);
+  });
+}
+
+function startTTSObserver() {
+  let lastUrl = location.href;
+  let debounceTimer = null;
+
+  const observer = new MutationObserver(() => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        stopTTS();
+        clearFocusedReading();
+        speedSyncRegistry = [];
+      }
+      injectTTSButtons();
+    }, 150);
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+  window.addEventListener("popstate", stopTTS);
+  injectTTSButtons();
+}
+/* TTS end */
 
 function formatPercent(value) {
   return `${Math.round(Number(value) * 100)}%`;
@@ -483,6 +708,18 @@ function buildOverlay(root) {
         <p class="rao-summary-status" aria-live="polite"></p>
         <div class="rao-summary-output" hidden></div>
       </div>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:4px 0 12px" />
+      <p style="margin:0 0 10px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b">Text to Speech</p>
+      <label class="rao-row">
+        <span class="rao-row-head"><span>Voice</span></span>
+        <select class="rao-select rao-tts-voice">
+          <option value="">Default voice</option>
+        </select>
+      </label>
+      <label class="rao-row rao-toggle">
+        <span>Highlight words while reading</span>
+        <input class="rao-tts-highlight" type="checkbox" />
+      </label>
       <a class="rao-link" href="${chrome.runtime.getURL("src/options/options.html")}" target="_blank" rel="noreferrer">
         Open settings
       </a>
@@ -498,6 +735,8 @@ function buildOverlay(root) {
   const lineHeightInput = shadow.querySelector(".rao-line-height");
   const letterSpacingInput = shadow.querySelector(".rao-letter-spacing");
   const wordSpacingInput = shadow.querySelector(".rao-word-spacing");
+  const ttsVoiceInput = shadow.querySelector(".rao-tts-voice");
+  const ttsHighlightInput = shadow.querySelector(".rao-tts-highlight");
   const fontScaleValue = shadow.querySelector(".rao-font-scale-value");
   const lineHeightValue = shadow.querySelector(".rao-line-height-value");
   const letterSpacingValue = shadow.querySelector(".rao-letter-spacing-value");
@@ -505,6 +744,8 @@ function buildOverlay(root) {
   const summaryButton = shadow.querySelector(".rao-summary-button");
   const summaryStatus = shadow.querySelector(".rao-summary-status");
   const summaryOutput = shadow.querySelector(".rao-summary-output");
+
+  populateVoiceSelect(ttsVoiceInput);
 
   overlayElements = {
     enabledInput,
@@ -514,6 +755,8 @@ function buildOverlay(root) {
     lineHeightInput,
     letterSpacingInput,
     wordSpacingInput,
+    ttsVoiceInput,
+    ttsHighlightInput,
     fontScaleValue,
     lineHeightValue,
     letterSpacingValue,
@@ -613,7 +856,20 @@ function buildOverlay(root) {
   });
 
   setSummaryState(summaryState);
+
+  ttsVoiceInput?.addEventListener("change", async (event) => {
+    const value = event.target instanceof HTMLSelectElement ? event.target.value : currentSettings.ttsVoice;
+    const nextSettings = await saveSettings({ ...currentSettings, ttsVoice: value });
+    applySettings(nextSettings);
+  });
+
+  ttsHighlightInput?.addEventListener("change", async (event) => {
+    const checked = event.target instanceof HTMLInputElement ? event.target.checked : true;
+    const nextSettings = await saveSettings({ ...currentSettings, ttsHighlight: checked });
+    applySettings(nextSettings);
+  });
 }
+/* TTS inputs ends */
 
 function syncOverlay(settings) {
   if (!overlayElements) {
@@ -628,6 +884,8 @@ function syncOverlay(settings) {
     lineHeightInput,
     letterSpacingInput,
     wordSpacingInput,
+    ttsVoiceInput,
+    ttsHighlightInput,
     fontScaleValue,
     lineHeightValue,
     letterSpacingValue,
@@ -677,6 +935,14 @@ function syncOverlay(settings) {
   if (wordSpacingValue) {
     wordSpacingValue.textContent = formatEm(settings.wordSpacing);
   }
+
+  if (ttsVoiceInput instanceof HTMLSelectElement && settings.ttsVoice !== undefined) {
+    ttsVoiceInput.value = settings.ttsVoice;
+  }
+
+  if (ttsHighlightInput instanceof HTMLInputElement) {
+    ttsHighlightInput.checked = settings.ttsHighlight ?? true;
+  }
 }
 
 function applySettings(settings) {
@@ -693,6 +959,7 @@ function applySettings(settings) {
   document.documentElement.style.setProperty("--rao-letter-spacing", `${settings.letterSpacing}em`);
   document.documentElement.style.setProperty("--rao-word-spacing", `${settings.wordSpacing}em`);
   syncOverlay(currentSettings);
+  syncAllSpeedControls();
 }
 
 async function init() {
@@ -704,6 +971,20 @@ async function init() {
   const root = createRoot();
   buildOverlay(root);
   applySettings(settings);
+  startTTSObserver();
+  document.addEventListener("click", activateFocusedReading);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") clearFocusedReading(); });
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === "TAB_MUTED")   { tabMuted = true;  stopTTS(); }
+    if (msg.type === "TAB_UNMUTED") { tabMuted = false; }
+  });
+
+  chrome.runtime.sendMessage({ type: "PING" }, (res) => {
+    if (!res?.tabId) return;
+    chrome.runtime.sendMessage({ type: "GET_MUTE_STATE", tabId: res.tabId }, (r) => {
+      tabMuted = r?.muted ?? false;
+    });
+  });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "sync" || !changes[STORAGE_KEY]?.newValue) {

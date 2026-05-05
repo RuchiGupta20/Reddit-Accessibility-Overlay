@@ -4,7 +4,8 @@
   "description": "A Reddit overlay extension scaffold for building dyslexia and ADHD accessibility features.",
   "version": "0.1.0",
   "permissions": [
-    "storage"
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
     "https://www.reddit.com/*",
@@ -26,6 +27,7 @@
         "https://www.reddit.com/*"
       ],
       "js": [
+        "src/content/tts.js",
         "src/content/content.js"
       ],
       "css": [
