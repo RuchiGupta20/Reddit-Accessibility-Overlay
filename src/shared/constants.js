@@ -10,5 +10,8 @@ export const DEFAULT_SETTINGS = {
   wordSpacing: 0,
   ttsRate: 1,
   ttsVoice: "",
-  ttsHighlight: true
+  ttsHighlight: true,
+  attentionPrompt: true,
+  attentionTimerMinutes: 0,
+  autoPauseFeed: true
 };

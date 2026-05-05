@@ -82,13 +82,29 @@ input[type="range"] {
   width: 100%;
 }
 
-select {
+select,
+input[type="number"] {
   border: 1px solid #cbd5e1;
   border-radius: 12px;
   padding: 12px 14px;
   background: #ffffff;
   color: inherit;
   font: inherit;
+}
+
+input[type="number"] {
+  box-sizing: border-box;
+  max-width: 140px;
+}
+
+.section-label {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 20px;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 output {

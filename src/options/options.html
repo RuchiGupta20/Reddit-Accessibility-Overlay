@@ -29,6 +29,33 @@
             <small class="hint">Hides sidebars, karma and awards where possible, limits deep reply chains, and tones down visual intensity.</small>
           </label>
 
+          <div class="section-label">Attention</div>
+
+          <label class="field">
+            <span class="field-head">
+              <span>Ask why I am here</span>
+              <input id="attention-prompt" type="checkbox" />
+            </span>
+            <small class="hint">Shows the intention-setting prompt when a Reddit session opens.</small>
+          </label>
+
+          <label class="field">
+            <span class="field-head">
+              <span>Break timer</span>
+              <output id="attention-timer-value" for="attention-timer"></output>
+            </span>
+            <input id="attention-timer" type="number" min="0" step="any" inputmode="decimal" />
+            <small class="hint">Set minutes before an automatic pause. Use 0 to turn the timer off.</small>
+          </label>
+
+          <label class="field">
+            <span class="field-head">
+              <span>Scroll pause</span>
+              <input id="auto-pause-feed" type="checkbox" />
+            </span>
+            <small class="hint">Shows a pause prompt after a long scroll so you can continue, take a break, or turn the prompt off.</small>
+          </label>
+
           <label class="field">
             <span class="field-head">
               <span>Dyslexia-friendly font</span>

@@ -2,6 +2,9 @@ import { getSettings, saveSettings } from "../shared/storage.js";
 
 const enabledInput = document.getElementById("enabled");
 const reducedStimulationInput = document.getElementById("reduced-stimulation");
+const attentionPromptInput = document.getElementById("attention-prompt");
+const attentionTimerInput = document.getElementById("attention-timer");
+const autoPauseFeedInput = document.getElementById("auto-pause-feed");
 const fontPresetInput = document.getElementById("font-preset");
 const fontScaleInput = document.getElementById("font-scale");
 const lineHeightInput = document.getElementById("line-height");
@@ -11,6 +14,7 @@ const fontScaleValue = document.getElementById("font-scale-value");
 const lineHeightValue = document.getElementById("line-height-value");
 const letterSpacingValue = document.getElementById("letter-spacing-value");
 const wordSpacingValue = document.getElementById("word-spacing-value");
+const attentionTimerValue = document.getElementById("attention-timer-value");
 const status = document.getElementById("status");
 let currentSettings = null;
 let persistTimer = null;
@@ -38,6 +42,23 @@ function syncForm(settings) {
 
   if (reducedStimulationInput instanceof HTMLInputElement) {
     reducedStimulationInput.checked = settings.reducedStimulation;
+  }
+
+  if (attentionPromptInput instanceof HTMLInputElement) {
+    attentionPromptInput.checked = settings.attentionPrompt ?? true;
+  }
+
+  if (attentionTimerInput instanceof HTMLInputElement) {
+    attentionTimerInput.value = String(settings.attentionTimerMinutes ?? 0);
+  }
+
+  if (autoPauseFeedInput instanceof HTMLInputElement) {
+    autoPauseFeedInput.checked = settings.autoPauseFeed ?? true;
+  }
+
+  if (attentionTimerValue) {
+    const minutes = Number(settings.attentionTimerMinutes || 0);
+    attentionTimerValue.textContent = minutes > 0 ? `${minutes} min` : "Off";
   }
 
   if (fontPresetInput instanceof HTMLSelectElement) {
@@ -140,6 +161,30 @@ async function init() {
     reducedStimulationInput.addEventListener("change", async () => {
       await updateSettings({
         reducedStimulation: reducedStimulationInput.checked
+      });
+    });
+  }
+
+  if (attentionPromptInput instanceof HTMLInputElement) {
+    attentionPromptInput.addEventListener("change", async () => {
+      await updateSettings({
+        attentionPrompt: attentionPromptInput.checked
+      });
+    });
+  }
+
+  if (attentionTimerInput instanceof HTMLInputElement) {
+    attentionTimerInput.addEventListener("change", async () => {
+      await updateSettings({
+        attentionTimerMinutes: Math.max(0, Number(attentionTimerInput.value) || 0)
+      });
+    });
+  }
+
+  if (autoPauseFeedInput instanceof HTMLInputElement) {
+    autoPauseFeedInput.addEventListener("change", async () => {
+      await updateSettings({
+        autoPauseFeed: autoPauseFeedInput.checked
       });
     });
   }

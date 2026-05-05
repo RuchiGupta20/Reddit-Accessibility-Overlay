@@ -10,7 +10,10 @@ const DEFAULT_SETTINGS = {
   wordSpacing: 0,
   ttsRate: 1,
   ttsVoice: "",
-  ttsHighlight: true
+  ttsHighlight: true,
+  attentionPrompt: true,
+  attentionTimerMinutes: 0,
+  autoPauseFeed: true
 };
 const FONT_STACKS = {
   default: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -24,6 +27,20 @@ let summaryState = {
   status: "",
   summary: ""
 };
+let attentionState = {
+  intention: "",
+  prompted: false,
+  timerId: null,
+  countdownId: null,
+  timerEndsAt: 0,
+  reminderTimer: null,
+  startedAt: 0,
+  lastPauseY: 0,
+  paused: false,
+  previousOverflow: "",
+  previousBodyOverflow: ""
+};
+const ATTENTION_PAUSE_DISTANCE = 5200;
 
 function isRedditPage() {
   return window.location.hostname === "www.reddit.com";
@@ -477,6 +494,243 @@ async function summarizeCurrentThread() {
   }
 }
 
+function getAttentionIntent() {
+  return attentionState.intention || "your intention";
+}
+
+function setAttentionStatus(message) {
+  const status = overlayElements?.attentionStatus;
+  if (status) {
+    status.textContent = message;
+  }
+}
+
+function updateAttentionTimerLabel() {
+  const label = overlayElements?.attentionTimerStatus;
+  const minutes = Number(currentSettings.attentionTimerMinutes || 0);
+  let text = "No break timer";
+
+  if (minutes > 0 && attentionState.timerEndsAt) {
+    const remainingMs = Math.max(0, attentionState.timerEndsAt - Date.now());
+    text = `Break in ${formatRemainingTime(remainingMs)}`;
+  } else if (minutes > 0) {
+    text = `${minutes} min break timer`;
+  }
+
+  if (label) {
+    label.textContent = text;
+  }
+
+  if (overlayElements?.attentionTimerNote) {
+    overlayElements.attentionTimerNote.textContent = minutes > 0 ? text : "No break timer";
+  }
+}
+
+function formatRemainingTime(milliseconds) {
+  const totalSeconds = Math.ceil(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes <= 0) {
+    return `${seconds}s`;
+  }
+
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function formatScrollDistance(pixels) {
+  const roundedPixels = Math.max(0, Math.ceil(pixels));
+
+  if (roundedPixels >= 1000) {
+    return `${(roundedPixels / 1000).toFixed(1)}k px`;
+  }
+
+  return `${roundedPixels}px`;
+}
+
+function getScrollDistanceLeft(fromY, threshold) {
+  return Math.max(0, threshold - Math.abs(window.scrollY - fromY));
+}
+
+function updateAttentionScrollLabels() {
+  const pauseLabel = overlayElements?.attentionPauseStatus;
+
+  if (pauseLabel) {
+    if (!currentSettings.autoPauseFeed) {
+      pauseLabel.textContent = "Scroll pause off";
+    } else if (attentionState.paused) {
+      pauseLabel.textContent = "Feed is paused";
+    } else {
+      const pauseLeft = getScrollDistanceLeft(attentionState.lastPauseY, ATTENTION_PAUSE_DISTANCE);
+      pauseLabel.textContent = `Pause in ${formatScrollDistance(pauseLeft)}`;
+    }
+  }
+}
+
+function clearAttentionCountdown() {
+  if (attentionState.countdownId) {
+    window.clearInterval(attentionState.countdownId);
+    attentionState.countdownId = null;
+  }
+}
+
+function scheduleAttentionTimer() {
+  if (attentionState.timerId) {
+    window.clearTimeout(attentionState.timerId);
+    attentionState.timerId = null;
+  }
+  clearAttentionCountdown();
+  attentionState.timerEndsAt = 0;
+
+  const minutes = Number(currentSettings.attentionTimerMinutes || 0);
+  if (!minutes || !attentionState.startedAt) {
+    updateAttentionTimerLabel();
+    return;
+  }
+
+  attentionState.timerEndsAt = Date.now() + (minutes * 60 * 1000);
+  updateAttentionTimerLabel();
+  attentionState.countdownId = window.setInterval(updateAttentionTimerLabel, 1000);
+  attentionState.timerId = window.setTimeout(() => {
+    clearAttentionCountdown();
+    attentionState.timerEndsAt = 0;
+    updateAttentionTimerLabel();
+    showAttentionToast(`Time check: still here for ${getAttentionIntent()}?`);
+    pauseFeed("Break timer finished.");
+  }, minutes * 60 * 1000);
+}
+
+function showAttentionPrompt() {
+  const modal = overlayElements?.attentionModal;
+  const input = overlayElements?.attentionIntentInput;
+  const timerInput = overlayElements?.attentionPromptTimerInput;
+
+  if (!modal || attentionState.prompted || !currentSettings.attentionPrompt) {
+    return;
+  }
+
+  attentionState.prompted = true;
+  modal.removeAttribute("hidden");
+
+  if (input instanceof HTMLInputElement) {
+    input.value = attentionState.intention;
+    window.setTimeout(() => input.focus(), 50);
+  }
+
+  if (timerInput instanceof HTMLInputElement) {
+    timerInput.value = String(currentSettings.attentionTimerMinutes ?? 0);
+  }
+}
+
+function closeAttentionPrompt() {
+  overlayElements?.attentionModal?.setAttribute("hidden", "");
+}
+
+function startAttentionSession(intention) {
+  attentionState.intention = normalizeText(intention);
+  attentionState.startedAt = Date.now();
+  attentionState.lastPauseY = window.scrollY;
+  updateAttentionScrollLabels();
+  closeAttentionPrompt();
+  scheduleAttentionTimer();
+
+  const message = attentionState.intention
+    ? `Intention set: ${attentionState.intention}`
+    : "Session started without an intention.";
+  setAttentionStatus(message);
+}
+
+async function startAttentionSessionFromPrompt(intention) {
+  const timerInput = overlayElements?.attentionPromptTimerInput;
+
+  if (timerInput instanceof HTMLInputElement) {
+    const timerMinutes = Math.max(0, Number(timerInput.value) || 0);
+    const nextSettings = await saveSettings({
+      ...currentSettings,
+      attentionTimerMinutes: timerMinutes
+    });
+
+    applySettings(nextSettings);
+  }
+
+  startAttentionSession(intention);
+}
+
+function showAttentionToast(message) {
+  const toast = overlayElements?.attentionToast;
+  if (!toast) {
+    return;
+  }
+
+  toast.textContent = message;
+  toast.removeAttribute("hidden");
+
+  if (attentionState.reminderTimer) {
+    window.clearTimeout(attentionState.reminderTimer);
+  }
+
+  attentionState.reminderTimer = window.setTimeout(() => {
+    toast.setAttribute("hidden", "");
+  }, 5200);
+}
+
+function setFeedPaused(paused) {
+  if (paused === attentionState.paused) {
+    return;
+  }
+
+  attentionState.paused = paused;
+
+  if (paused) {
+    attentionState.previousOverflow = document.documentElement.style.overflow;
+    attentionState.previousBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return;
+  }
+
+  document.documentElement.style.overflow = attentionState.previousOverflow;
+  document.body.style.overflow = attentionState.previousBodyOverflow;
+  attentionState.lastPauseY = window.scrollY;
+  updateAttentionScrollLabels();
+}
+
+function pauseFeed(reason = "Feed paused.") {
+  if (!currentSettings.autoPauseFeed || attentionState.paused) {
+    return;
+  }
+
+  const pauseCard = overlayElements?.attentionPause;
+  const pauseReason = overlayElements?.attentionPauseReason;
+
+  if (pauseReason) {
+    pauseReason.textContent = reason;
+  }
+
+  pauseCard?.removeAttribute("hidden");
+  setFeedPaused(true);
+  updateAttentionScrollLabels();
+}
+
+function resumeFeed() {
+  overlayElements?.attentionPause?.setAttribute("hidden", "");
+  setFeedPaused(false);
+}
+
+function handleAttentionScroll() {
+  if (!currentSettings.enabled || attentionState.paused) {
+    return;
+  }
+
+  const y = window.scrollY;
+
+  if (currentSettings.autoPauseFeed && Math.abs(y - attentionState.lastPauseY) >= ATTENTION_PAUSE_DISTANCE) {
+    pauseFeed("You have been scrolling for a while.");
+  }
+
+  updateAttentionScrollLabels();
+}
+
 function buildOverlay(root) {
   const shadow = root.shadowRoot ?? root.attachShadow({ mode: "open" });
 
@@ -647,6 +901,189 @@ function buildOverlay(root) {
       .rao-summary-output[hidden] {
         display: none;
       }
+
+      .rao-divider {
+        border: 0;
+        border-top: 1px solid var(--rao-panel-border);
+        margin: 18px 0 14px;
+      }
+
+      .rao-section-label {
+        margin: 0 0 12px;
+        color: var(--rao-panel-muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .rao-number {
+        width: 84px;
+        border: 1px solid var(--rao-panel-border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: var(--rao-panel-bg);
+        color: inherit;
+        font: inherit;
+      }
+
+      .rao-attention-status {
+        min-height: 18px;
+        margin: 0 0 10px;
+        color: var(--rao-panel-muted);
+        font-size: 12px;
+      }
+
+      .rao-scroll-status {
+        margin: -8px 0 12px;
+        color: var(--rao-panel-muted);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .rao-attention-backdrop,
+      .rao-pause-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(15, 23, 42, 0.36);
+        backdrop-filter: blur(2px);
+      }
+
+      .rao-attention-backdrop[hidden],
+      .rao-pause-backdrop[hidden],
+      .rao-attention-toast[hidden] {
+        display: none;
+      }
+
+      .rao-attention-card,
+      .rao-pause-card {
+        width: min(100%, 360px);
+        border: 1px solid var(--rao-panel-border);
+        border-radius: 8px;
+        padding: 24px;
+        background: var(--rao-panel-bg);
+        color: var(--rao-panel-text);
+        box-shadow: var(--rao-panel-shadow);
+        font: 14px/1.5 Arial, sans-serif;
+        text-align: center;
+      }
+
+      .rao-attention-icon {
+        display: block;
+        width: 18px;
+        height: 18px;
+        margin-bottom: 8px;
+        margin-inline: auto;
+        border-radius: 999px;
+        background: radial-gradient(circle at 35% 35%, #fbcfe8, #f472b6 72%);
+      }
+
+      .rao-attention-card h2,
+      .rao-pause-card h2 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        line-height: 1.2;
+      }
+
+      .rao-attention-card p,
+      .rao-pause-card p {
+        margin: 0 0 16px;
+        color: var(--rao-panel-muted);
+        font-size: 13px;
+      }
+
+      .rao-intention-input {
+        box-sizing: border-box;
+        width: 100%;
+        border: 1px solid var(--rao-panel-border);
+        border-radius: 4px;
+        padding: 11px 12px;
+        background: var(--rao-panel-bg);
+        color: inherit;
+        font: inherit;
+      }
+
+      .rao-prompt-timer-row {
+        display: grid;
+        gap: 6px;
+        margin-top: 12px;
+        text-align: left;
+      }
+
+      .rao-prompt-timer-row span {
+        color: var(--rao-panel-text);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .rao-prompt-timer-input {
+        box-sizing: border-box;
+        width: 100%;
+        border: 1px solid var(--rao-panel-border);
+        border-radius: 4px;
+        padding: 10px 12px;
+        background: var(--rao-panel-bg);
+        color: inherit;
+        font: inherit;
+      }
+
+      .rao-attention-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .rao-pause-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .rao-secondary-button {
+        border: 1px solid var(--rao-panel-border);
+        border-radius: 4px;
+        padding: 10px 12px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .rao-primary-button {
+        border: 0;
+        border-radius: 4px;
+        padding: 10px 12px;
+        background: #111827;
+        color: #ffffff;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .rao-timer-note {
+        display: block;
+        margin-top: 12px;
+        color: var(--rao-panel-muted);
+        font-size: 11px;
+      }
+
+      .rao-attention-toast {
+        position: fixed;
+        right: 16px;
+        bottom: 84px;
+        z-index: 2147483647;
+        max-width: 320px;
+        border-radius: 8px;
+        padding: 12px 14px;
+        background: #1d4ed8;
+        color: #ffffff;
+        font: 700 13px/1.35 Arial, sans-serif;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.24);
+      }
     </style>
     <button class="rao-launcher" type="button" aria-expanded="false">
       Reading Tools
@@ -658,6 +1095,8 @@ function buildOverlay(root) {
         <span>Extension enabled</span>
         <input class="rao-enabled" type="checkbox" />
       </label>
+      <hr class="rao-divider" />
+      <p class="rao-section-label">Reduced Stimulation</p>
       <label class="rao-row">
         <span class="rao-row-head">
           <span>Reduced stimulation mode</span>
@@ -703,13 +1142,33 @@ function buildOverlay(root) {
         </span>
         <input class="rao-input rao-word-spacing" type="range" min="0" max="0.3" step="0.02" />
       </label>
+      <hr class="rao-divider" />
+      <p class="rao-section-label">Attention</p>
+      <label class="rao-row rao-toggle">
+        <span>Ask why I am here</span>
+        <input class="rao-attention-prompt" type="checkbox" />
+      </label>
+      <label class="rao-row">
+        <span class="rao-row-head">
+          <span>Break timer</span>
+          <span class="rao-value rao-attention-timer-status"></span>
+        </span>
+        <input class="rao-number rao-attention-timer" type="number" min="0" step="any" inputmode="decimal" />
+        <span class="rao-hint">Use 0 for no timer.</span>
+      </label>
+      <label class="rao-row rao-toggle">
+        <span>Scroll pause</span>
+        <input class="rao-auto-pause-feed" type="checkbox" />
+      </label>
+      <p class="rao-scroll-status rao-pause-scroll-status"></p>
+      <p class="rao-attention-status" aria-live="polite"></p>
       <div class="rao-row">
         <button class="rao-button rao-summary-button" type="button">Summarize this thread</button>
         <p class="rao-summary-status" aria-live="polite"></p>
         <div class="rao-summary-output" hidden></div>
       </div>
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:4px 0 12px" />
-      <p style="margin:0 0 10px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#64748b">Text to Speech</p>
+      <hr class="rao-divider" />
+      <p class="rao-section-label">Text to Speech</p>
       <label class="rao-row">
         <span class="rao-row-head"><span>Voice</span></span>
         <select class="rao-select rao-tts-voice">
@@ -724,12 +1183,44 @@ function buildOverlay(root) {
         Open settings
       </a>
     </section>
+    <div class="rao-attention-backdrop" hidden>
+      <form class="rao-attention-card">
+        <span class="rao-attention-icon" aria-hidden="true"></span>
+        <h2>Why am I here?</h2>
+        <p>Take a moment to set an intention before browsing.</p>
+        <input class="rao-intention-input" type="text" maxlength="140" placeholder="e.g. Check r/webdev for React tips" />
+        <label class="rao-prompt-timer-row">
+          <span>Break timer in minutes</span>
+          <input class="rao-prompt-timer-input" type="number" min="0" step="any" inputmode="decimal" placeholder="0 for no timer" />
+        </label>
+        <div class="rao-attention-actions">
+          <button class="rao-secondary-button rao-attention-skip" type="button">Skip</button>
+          <button class="rao-primary-button" type="submit">Set Intention</button>
+        </div>
+        <span class="rao-timer-note rao-attention-timer-note"></span>
+      </form>
+    </div>
+    <div class="rao-pause-backdrop" hidden>
+      <div class="rao-pause-card" role="dialog" aria-modal="true" aria-labelledby="rao-pause-title">
+        <h2 id="rao-pause-title">Pause the feed</h2>
+        <p class="rao-pause-reason">You have been scrolling for a while.</p>
+        <div class="rao-attention-actions rao-pause-actions">
+          <button class="rao-secondary-button rao-pause-break" type="button">Take a break</button>
+          <button class="rao-primary-button rao-pause-resume" type="button">Continue</button>
+          <button class="rao-secondary-button rao-pause-disable" type="button">Turn off scroll pause</button>
+        </div>
+      </div>
+    </div>
+    <div class="rao-attention-toast" role="status" aria-live="polite" hidden></div>
   `;
 
   const launcher = shadow.querySelector(".rao-launcher");
   const panel = shadow.querySelector(".rao-panel");
   const enabledInput = shadow.querySelector(".rao-enabled");
   const reducedStimulationInput = shadow.querySelector(".rao-reduced-stimulation");
+  const attentionPromptInput = shadow.querySelector(".rao-attention-prompt");
+  const attentionTimerInput = shadow.querySelector(".rao-attention-timer");
+  const autoPauseFeedInput = shadow.querySelector(".rao-auto-pause-feed");
   const fontPresetInput = shadow.querySelector(".rao-font-preset");
   const fontScaleInput = shadow.querySelector(".rao-font-scale");
   const lineHeightInput = shadow.querySelector(".rao-line-height");
@@ -744,12 +1235,30 @@ function buildOverlay(root) {
   const summaryButton = shadow.querySelector(".rao-summary-button");
   const summaryStatus = shadow.querySelector(".rao-summary-status");
   const summaryOutput = shadow.querySelector(".rao-summary-output");
+  const attentionStatus = shadow.querySelector(".rao-attention-status");
+  const attentionPauseStatus = shadow.querySelector(".rao-pause-scroll-status");
+  const attentionTimerStatus = shadow.querySelector(".rao-attention-timer-status");
+  const attentionModal = shadow.querySelector(".rao-attention-backdrop");
+  const attentionForm = shadow.querySelector(".rao-attention-card");
+  const attentionIntentInput = shadow.querySelector(".rao-intention-input");
+  const attentionPromptTimerInput = shadow.querySelector(".rao-prompt-timer-input");
+  const attentionSkip = shadow.querySelector(".rao-attention-skip");
+  const attentionTimerNote = shadow.querySelector(".rao-attention-timer-note");
+  const attentionToast = shadow.querySelector(".rao-attention-toast");
+  const attentionPause = shadow.querySelector(".rao-pause-backdrop");
+  const attentionPauseReason = shadow.querySelector(".rao-pause-reason");
+  const attentionPauseResume = shadow.querySelector(".rao-pause-resume");
+  const attentionPauseBreak = shadow.querySelector(".rao-pause-break");
+  const attentionPauseDisable = shadow.querySelector(".rao-pause-disable");
 
   populateVoiceSelect(ttsVoiceInput);
 
   overlayElements = {
     enabledInput,
     reducedStimulationInput,
+    attentionPromptInput,
+    attentionTimerInput,
+    autoPauseFeedInput,
     fontPresetInput,
     fontScaleInput,
     lineHeightInput,
@@ -763,7 +1272,22 @@ function buildOverlay(root) {
     wordSpacingValue,
     summaryButton,
     summaryStatus,
-    summaryOutput
+    summaryOutput,
+    attentionStatus,
+    attentionPauseStatus,
+    attentionTimerStatus,
+    attentionModal,
+    attentionForm,
+    attentionIntentInput,
+    attentionPromptTimerInput,
+    attentionSkip,
+    attentionTimerNote,
+    attentionToast,
+    attentionPause,
+    attentionPauseReason,
+    attentionPauseResume,
+    attentionPauseBreak,
+    attentionPauseDisable
   };
 
   launcher?.addEventListener("click", () => {
@@ -799,6 +1323,41 @@ function buildOverlay(root) {
     });
 
     applySettings(nextSettings);
+  });
+
+  attentionPromptInput?.addEventListener("change", async (event) => {
+    const checked = event.target instanceof HTMLInputElement ? event.target.checked : true;
+    const nextSettings = await saveSettings({
+      ...currentSettings,
+      attentionPrompt: checked
+    });
+
+    applySettings(nextSettings);
+  });
+
+  attentionTimerInput?.addEventListener("change", async (event) => {
+    const value = event.target instanceof HTMLInputElement ? Number(event.target.value) : 0;
+    const nextSettings = await saveSettings({
+      ...currentSettings,
+      attentionTimerMinutes: Math.max(0, value || 0)
+    });
+
+    applySettings(nextSettings);
+    scheduleAttentionTimer();
+  });
+
+  autoPauseFeedInput?.addEventListener("change", async (event) => {
+    const checked = event.target instanceof HTMLInputElement ? event.target.checked : true;
+    const nextSettings = await saveSettings({
+      ...currentSettings,
+      autoPauseFeed: checked
+    });
+
+    applySettings(nextSettings);
+    if (!checked) {
+      resumeFeed();
+    }
+    updateAttentionScrollLabels();
   });
 
   fontPresetInput?.addEventListener("change", async (event) => {
@@ -868,6 +1427,37 @@ function buildOverlay(root) {
     const nextSettings = await saveSettings({ ...currentSettings, ttsHighlight: checked });
     applySettings(nextSettings);
   });
+
+  attentionForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const value = attentionIntentInput instanceof HTMLInputElement ? attentionIntentInput.value : "";
+    startAttentionSessionFromPrompt(value);
+  });
+
+  attentionSkip?.addEventListener("click", () => {
+    startAttentionSessionFromPrompt("");
+  });
+
+  attentionPauseResume?.addEventListener("click", () => {
+    resumeFeed();
+  });
+
+  attentionPauseBreak?.addEventListener("click", () => {
+    resumeFeed();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    showAttentionToast("Break started. Come back when you are ready.");
+  });
+
+  attentionPauseDisable?.addEventListener("click", async () => {
+    const nextSettings = await saveSettings({
+      ...currentSettings,
+      autoPauseFeed: false
+    });
+
+    resumeFeed();
+    applySettings(nextSettings);
+    updateAttentionScrollLabels();
+  });
 }
 /* TTS inputs ends */
 
@@ -879,6 +1469,9 @@ function syncOverlay(settings) {
   const {
     enabledInput,
     reducedStimulationInput,
+    attentionPromptInput,
+    attentionTimerInput,
+    autoPauseFeedInput,
     fontPresetInput,
     fontScaleInput,
     lineHeightInput,
@@ -898,6 +1491,22 @@ function syncOverlay(settings) {
 
   if (reducedStimulationInput instanceof HTMLInputElement) {
     reducedStimulationInput.checked = settings.reducedStimulation;
+  }
+
+  if (attentionPromptInput instanceof HTMLInputElement) {
+    attentionPromptInput.checked = settings.attentionPrompt ?? true;
+  }
+
+  if (attentionTimerInput instanceof HTMLInputElement) {
+    attentionTimerInput.value = String(settings.attentionTimerMinutes ?? 0);
+  }
+
+  if (overlayElements.attentionPromptTimerInput instanceof HTMLInputElement) {
+    overlayElements.attentionPromptTimerInput.value = String(settings.attentionTimerMinutes ?? 0);
+  }
+
+  if (autoPauseFeedInput instanceof HTMLInputElement) {
+    autoPauseFeedInput.checked = settings.autoPauseFeed ?? true;
   }
 
   if (fontPresetInput instanceof HTMLSelectElement) {
@@ -943,6 +1552,9 @@ function syncOverlay(settings) {
   if (ttsHighlightInput instanceof HTMLInputElement) {
     ttsHighlightInput.checked = settings.ttsHighlight ?? true;
   }
+
+  updateAttentionTimerLabel();
+  updateAttentionScrollLabels();
 }
 
 function applySettings(settings) {
@@ -960,6 +1572,10 @@ function applySettings(settings) {
   document.documentElement.style.setProperty("--rao-word-spacing", `${settings.wordSpacing}em`);
   syncOverlay(currentSettings);
   syncAllSpeedControls();
+
+  if (!currentSettings.enabled || !currentSettings.autoPauseFeed) {
+    resumeFeed();
+  }
 }
 
 async function init() {
@@ -971,7 +1587,11 @@ async function init() {
   const root = createRoot();
   buildOverlay(root);
   applySettings(settings);
+  attentionState.lastReminderY = window.scrollY;
+  attentionState.lastPauseY = window.scrollY;
+  showAttentionPrompt();
   startTTSObserver();
+  window.addEventListener("scroll", handleAttentionScroll, { passive: true });
   document.addEventListener("click", activateFocusedReading);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") clearFocusedReading(); });
   chrome.runtime.onMessage.addListener((msg) => {
@@ -992,6 +1612,7 @@ async function init() {
     }
 
     applySettings(changes[STORAGE_KEY].newValue);
+    scheduleAttentionTimer();
   });
 }
 
